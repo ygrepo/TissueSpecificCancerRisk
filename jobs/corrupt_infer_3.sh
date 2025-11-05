@@ -33,5 +33,6 @@ corrupt-infer-with-noisy-params \
     --engine.nScans 10000 \
     --engine.nPassesPerScan 1 \
     --engine.nChains 10
- cp results/latest/samples/phylo.csv ./
+
+cp results/latest/samples/phylo.csv ./
 echo "Job finished."

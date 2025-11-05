@@ -23,6 +23,7 @@ export PATH=$SITKA_BIN_PATH:$PATH
 
 # Run the command
 FN=/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk/results/all/2025-11-05-10-30-26-yp0MZMhb.exec/average.csv
-corrupt-greedy --tipInclusionProbabilities ReadOnlyCLMatrix $FN
+corrupt-greedy --tipInclusionProbabilities ReadOnlyCLMatrix average.csv
+cp results/latest/tree.newick ./
 
 echo "Job finished."

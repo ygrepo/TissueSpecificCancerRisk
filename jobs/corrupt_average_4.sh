@@ -23,6 +23,7 @@ export PATH=$SITKA_BIN_PATH:$PATH
 
 # Run the command
 FN=/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk/results/all/2025-11-05-15-15-00-gES6XLmL.exec/samples/phylo.csv
-corrupt-average --csvFile $FN --logisticTransform false
+corrupt-average --csvFile phylo.csv --logisticTransform false
+cp results/latest/average.csv ./
 
 echo "Job finished."
