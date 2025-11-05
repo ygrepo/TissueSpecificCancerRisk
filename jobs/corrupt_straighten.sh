@@ -13,7 +13,9 @@
 echo "Running corrupt-straighten on host $(hostname)..."
 
 # Load the required Java module
-module load java/1.8.0_202
+module purge
+module load java/1.8.0_151
+
 
 # Add the sitkatree binaries to your PATH
 export SITKA_BIN_PATH="/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/sitkatree/sitka/build/install/nowellpack/bin"
