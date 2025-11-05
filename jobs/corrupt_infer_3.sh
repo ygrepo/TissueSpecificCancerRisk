@@ -26,17 +26,16 @@ mkdir -p logs
 # We set --engine.nChains to 4 to match our '-n 4' CPU request
 FILTERED_PATH=/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk/results/all/2025-11-05-10-32-39-xmCj8wy3.exec/filtered.csv
 echo "Running"
-corrupt-infer-with-noisy-params -h
-# \
-#     --model.globalParameterization true \
-#     --model.binaryMatrix filtered.csv \
-#     --model.fprBound 0.1 \
-#     --model.fnrBound 0.5 \
-#     --engine PT \
-#     --engine.initialization FORWARD \
-#     --engine.nScans 10000 \
-#     --engine.nPassesPerScan 1 \
-#     --engine.nChains 10
+corrupt-infer-with-noisy-params \
+    --model.globalParameterization true \
+    --model.binaryMatrix filtered.csv \
+    --model.fprBound 0.1 \
+    --model.fnrBound 0.5 \
+    --engine PT \
+    --engine.initialization FORWARD \
+    --engine.nScans 10000 \
+    --engine.nPassesPerScan 1 \
+    --engine.nChains 10
 
 cp results/latest/samples/phylo.csv ./
 echo "Job finished."
