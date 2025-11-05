@@ -25,7 +25,7 @@ export PATH=$SITKA_BIN_PATH:$PATH
 FILTERED_PATRH=/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk/results/all/2025-11-05-10-32-39-xmCj8wy3.exec/filtered.csv
 corrupt-infer-with-noisy-params \
     --model.globalParameterization true \
-    --model.binaryMatrix $FILTERED_PATRH \
+    --model.binaryMatrix filtered.csv \
     --model.fprBound 0.1 \
     --model.fnrBound 0.5 \
     --engine PT \
