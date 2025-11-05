@@ -1,0 +1,11 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.DS_Store
+TissueSpecificCancerRisk.Rproj
+brca-del-17q13q.Rmd
+data/
+doc/
+trees/
+results/
