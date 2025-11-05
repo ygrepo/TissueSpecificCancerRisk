@@ -24,6 +24,6 @@ export PATH=$SITKA_BIN_PATH:$PATH
 # Run the command
 FN=data/SA501_tbnc_binary.csv # !!! UPDATE THIS PATH !!!
 corrupt-straighten --input $FN --neighborhoodSize 2
-
+cp results/latest/output.csv ./
 
 echo "Job finished."
