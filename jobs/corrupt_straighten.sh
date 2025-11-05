@@ -6,8 +6,8 @@
 #BSUB -n 1                    # Request 1 CPU core
 #BSUB -W 2:00                 # Walltime of 2 hours
 #BSUB -M 32000                # Request 32 GB of memory
-#BSUB -o straighten.%J.out    # Standard output log file
-#BSUB -e straighten.%J.err    # Standard error log file
+#BSUB -o logs/straighten.%J.out    # Standard output log file
+#BSUB -e logs/straighten.%J.err    # Standard error log file
 # --- End LSF Options ---
 
 echo "Running corrupt-straighten on host $(hostname)..."

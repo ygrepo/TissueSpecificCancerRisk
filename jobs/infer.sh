@@ -6,8 +6,8 @@
 #BSUB -n 12                   # Request 12 CPU cores
 #BSUB -W 24:00                # Walltime of 24 hours
 #BSUB -M 64000                # Request 64 GB of memory
-#BSUB -o infer.%J.out         # Standard output log file
-#BSUB -e infer.%J.err         # Standard error log file
+#BSUB -o logs/infer.%J.out         # Standard output log file
+#BSUB -e logs/infer.%J.err         # Standard error log file
 # --- End LSF Options ---
 
 echo "Running corrupt-infer on host $(hostname)..."

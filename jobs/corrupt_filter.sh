@@ -6,8 +6,8 @@
 #BSUB -n 1                    # Request 1 CPU core
 #BSUB -W 2:00                 # Walltime of 2 hours
 #BSUB -M 32000                # Request 32 GB of memory
-#BSUB -o filter.%J.out    # Standard output log file
-#BSUB -e filter.%J.err    # Standard error log file
+#BSUB -o logs/filter.%J.out    # Standard output log file
+#BSUB -e logs/filter.%J.err    # Standard error log file
 # --- End LSF Options ---
 
 echo "Running corrupt-filter on host $(hostname)..."
