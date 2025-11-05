@@ -3,7 +3,7 @@
 # --- LSF Job Options ---
 #BSUB -P acc_DiseaseGeneCell
 #BSUB -J sitka_infer           # Job name
-#BSUB -n 12                   # Request 12 CPU cores
+#BSUB -n 10                   # Request 12 CPU cores
 #BSUB -W 24:00                # Walltime of 24 hours
 #BSUB -M 64000                # Request 64 GB of memory
 #BSUB -o logs/infer.%J.out         # Standard output log file
@@ -21,17 +21,17 @@ export SITKA_BIN_PATH="/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/sitk
 export PATH=$SITKA_BIN_PATH:$PATH
 
 # Run the main inference command
-# We set --engine.nChains to 12 to match our '-n 12' CPU request
+# We set --engine.nChains to 4 to match our '-n 4' CPU request
 FILTERED_PATRH=/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk/results/all/2025-11-05-10-32-39-xmCj8wy3.exec/filtered.csv
 corrupt-infer-with-noisy-params \
---model.globalParameterization true \
---model.binaryMatrix $FILTERED_PATRH \
---model.fprBound 0.1 \
---model.fnrBound 0.5 \
---engine PT \
---engine.initialization FORWARD \
---engine.nScans 10000 \
---engine.nPassesPerScan 1 \
---engine.nChains 12
+    --model.globalParameterization true \
+    --model.binaryMatrix $FILTERED_PATRH \
+    --model.fprBound 0.1 \
+    --model.fnrBound 0.5 \
+    --engine PT \
+    --engine.initialization FORWARD \
+    --engine.nScans 10000 \
+    --engine.nPassesPerScan 1 \
+    --engine.nChains 10
 
 echo "Job finished."
