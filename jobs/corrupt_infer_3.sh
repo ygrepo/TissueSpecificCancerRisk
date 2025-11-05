@@ -22,7 +22,8 @@ export PATH=$SITKA_BIN_PATH:$PATH
 
 # Run the main inference command
 # We set --engine.nChains to 4 to match our '-n 4' CPU request
-FILTERED_PATRH=/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk/results/all/2025-11-05-10-32-39-xmCj8wy3.exec/filtered.csv
+FILTERED_PATH=/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk/results/all/2025-11-05-10-32-39-xmCj8wy3.exec/filtered.csv
+echo "Running"
 corrupt-infer-with-noisy-params \
     --model.globalParameterization true \
     --model.binaryMatrix filtered.csv \
