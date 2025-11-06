@@ -12,6 +12,10 @@
 
 echo "Running corrupt-filter on host $(hostname)..."
 
+PROJECT_DIR="/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk"
+echo "Changing to working directory: ${PROJECT_DIR}"
+cd "${PROJECT_DIR}"
+
 # Load the required Java module
 module purge
 module load java/1.8.0_151
@@ -22,8 +26,9 @@ export SITKA_BIN_PATH="/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/sitk
 export PATH=$SITKA_BIN_PATH:$PATH
 
 # Run the command
-FN=/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk/results/all/2025-11-05-10-30-26-yp0MZMhb.exec/output.csv
-corrupt-filter --input output.csv --lowerFraction 0.05
+FN="${PROJECT_DIR}/output.csv"
+
+corrupt-filter --input $FN --lowerFraction 0.05
 cp results/latest/filtered.csv ./
 
 echo "Job finished."
