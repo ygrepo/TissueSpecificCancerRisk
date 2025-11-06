@@ -12,6 +12,11 @@
 
 echo "Running corrupt-greedy on host $(hostname)..."
 
+PROJECT_DIR="/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk"
+echo "Changing to working directory: ${PROJECT_DIR}"
+cd "${PROJECT_DIR}"
+
+
 # Load the required Java module
 module purge
 module load java/1.8.0_151
@@ -21,9 +26,10 @@ module load java/1.8.0_151
 export SITKA_BIN_PATH="/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/sitkatree/sitka/build/install/nowellpack/bin"
 export PATH=$SITKA_BIN_PATH:$PATH
 
+
 # Run the command
-FN=/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk/results/all/2025-11-05-10-30-26-yp0MZMhb.exec/average.csv
-corrupt-greedy --tipInclusionProbabilities ReadOnlyCLMatrix average.csv
+FN="${PROJECT_DIR}/average.csv"
+corrupt-greedy --tipInclusionProbabilities ReadOnlyCLMatrix "${FN}"
 cp results/latest/tree.newick ./
 
 echo "Job finished."
