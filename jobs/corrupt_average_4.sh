@@ -12,6 +12,9 @@
 
 echo "Running corrupt-average on host $(hostname)..."
 
+PROJECT_DIR="/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk"
+echo "Changing to working directory: ${PROJECT_DIR}"
+cd "${PROJECT_DIR}"
 # Load the required Java module
 module purge
 module load java/1.8.0_151
@@ -21,9 +24,14 @@ module load java/1.8.0_151
 export SITKA_BIN_PATH="/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/sitkatree/sitka/build/install/nowellpack/bin"
 export PATH=$SITKA_BIN_PATH:$PATH
 
+mkdir -p logs
+
+# Run the main inference command
+FN="${PROJECT_DIR}/filtered.csv"
+echo "Running"
+
 # Run the command
-FN=/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk/results/all/2025-11-05-15-15-00-gES6XLmL.exec/samples/phylo.csv
-corrupt-average --csvFile phylo.csv --logisticTransform false
+corrupt-average --csvFile "${FN}" --logisticTransform false
 cp results/latest/average.csv ./
 
 echo "Job finished."

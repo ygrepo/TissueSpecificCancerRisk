@@ -12,6 +12,12 @@
 
 echo "Running corrupt-infer on host $(hostname)..."
 
+set -e
+
+PROJECT_DIR="/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk"
+echo "Changing to working directory: ${PROJECT_DIR}"
+cd "${PROJECT_DIR}"
+
 # Load the required Java module
 module purge
 module load java/1.8.0_151
@@ -23,12 +29,11 @@ export PATH=$SITKA_BIN_PATH:$PATH
 mkdir -p logs
 
 # Run the main inference command
-# We set --engine.nChains to 4 to match our '-n 4' CPU request
-FILTERED_PATH=/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk/results/all/2025-11-05-10-32-39-xmCj8wy3.exec/filtered.csv
+FILTERED_PATH="${PROJECT_DIR}/filtered.csv"
 echo "Running"
 corrupt-infer-with-noisy-params \
     --model.globalParameterization true \
-    --model.binaryMatrix filtered.csv \
+    --model.binaryMatrix "${FILTERED_PATH}" \
     --model.fprBound 0.1 \
     --model.fnrBound 0.5 \
     --engine PT \
