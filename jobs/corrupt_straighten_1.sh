@@ -12,6 +12,10 @@
 
 echo "Running corrupt-straighten on host $(hostname)..."
 
+PROJECT_DIR="/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk"
+echo "Changing to working directory: ${PROJECT_DIR}"
+cd "${PROJECT_DIR}"
+
 # Load the required Java module
 module purge
 module load java/1.8.0_151
@@ -22,7 +26,7 @@ export SITKA_BIN_PATH="/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/sitk
 export PATH=$SITKA_BIN_PATH:$PATH
 
 # Run the command
-FN=data/SA501_tbnc_binary.csv # !!! UPDATE THIS PATH !!!
+FN="${PROJECT_DIR}/data/SA1292_cnv_binary.csv"
 corrupt-straighten --input $FN --neighborhoodSize 2
 cp results/latest/output.csv ./
 
