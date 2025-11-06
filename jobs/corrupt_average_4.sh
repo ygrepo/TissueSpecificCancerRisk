@@ -25,7 +25,7 @@ export PATH=$SITKA_BIN_PATH:$PATH
 mkdir -p logs
 
 # Run the main inference command
-FN="${PROJECT_DIR}/filtered.csv"
+FN="${PROJECT_DIR}/phylo.csv"
 echo "Running"
 
 # Run the command
