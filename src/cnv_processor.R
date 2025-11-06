@@ -10,11 +10,9 @@ show_usage <- function() {
   cat("Arguments:\n")
   cat("  input_file   Path to input CSV file with CNV data\n")
   cat("  output_file  Path for output CSV file\n")
-  cat("  --seed       Optional random seed (default: 42)\n")
   cat("\n")
   cat("Example:\n")
   cat("  Rscript cnv_processor.R data/SA501.tbnc.cnv.csv data/output.csv\n")
-  cat("  Rscript cnv_processor.R data/input.csv data/output.csv --seed 123\n")
   quit(status = 1)
 }
 
@@ -31,21 +29,6 @@ if (length(args) < 2) {
 # Parse arguments
 input_file <- args[1]
 output_file <- args[2]
-seed_value <- 42  # default
-
-# Parse optional seed argument
-if ("--seed" %in% args) {
-  seed_idx <- which(args == "--seed")
-  if (seed_idx == length(args)) {
-    cat("Error: --seed requires a value\n")
-    quit(status = 1)
-  }
-  seed_value <- as.numeric(args[seed_idx + 1])
-  if (is.na(seed_value)) {
-    cat("Error: Invalid seed value\n")
-    quit(status = 1)
-  }
-}
 
 # Validate input file exists
 if (!file.exists(input_file)) {
@@ -65,14 +48,12 @@ suppressPackageStartupMessages({
 })
 
 # Clear environment and set seed
-rm(list = ls()[!ls() %in% c("input_file", "output_file", "seed_value")])
-set.seed(seed_value)
+rm(list = ls()[!ls() %in% c("input_file", "output_file")])
 date <- Sys.Date()
 
 cat("Processing CNV data...\n")
 cat("Input file:", input_file, "\n")
 cat("Output file:", output_file, "\n")
-cat("Seed:", seed_value, "\n")
 cat("Date:", as.character(date), "\n\n")
 
 # Read data
