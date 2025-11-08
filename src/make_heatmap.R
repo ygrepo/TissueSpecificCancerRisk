@@ -6,11 +6,13 @@ library(glue)
 library(dplyr)
 library(grid)
 library(ComplexHeatmap)
-library(signals)
+#library(signals)
 library(magick)
 
 # Suppress ComplexHeatmap messages
 ht_opt$message = FALSE
+library(here)
+source(here("src/plotHeatmap.R"))
 
 #' Generate a Heatmap Aligned with a Phylogenetic Tree
 #' 
@@ -137,10 +139,10 @@ make_heatmap_tree <- function(treefile,
   extra_in_data <- setdiff(actual_chroms, expected_chroms)
   
   if (length(missing_in_data) > 0) {
-    cat("⚠️  Missing from data:", paste(missing_in_data, collapse = ", "), "\n")
+    cat("Missing from data:", paste(missing_in_data, collapse = ", "), "\n")
   }
   if (length(extra_in_data) > 0) {
-    cat("⚠️  Extra in data:", paste(extra_in_data, collapse = ", "), "\n")
+    cat("Extra in data:", paste(extra_in_data, collapse = ", "), "\n")
   }
   
   # Auto-adjust chroms to match data
