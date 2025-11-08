@@ -57,7 +57,7 @@ createCNmatrix <- function(CNbins,
     narowsdf <- cnmatrix[, 1:4] %>% 
       dplyr::mutate(id = 1:dplyr::n()) %>% 
       dplyr::mutate(isna = narows) %>% 
-      dplyr::mutate(runid = rleid(isna > 0.9)) %>% 
+      dplyr::mutate(runid = data.table::rleid(isna > 0.9)) %>%  # <- Fixed with namespace
       dplyr::add_count(runid) %>% 
       dplyr::group_by(chr) %>% 
       dplyr::mutate(maxn = max(n)) %>% 
