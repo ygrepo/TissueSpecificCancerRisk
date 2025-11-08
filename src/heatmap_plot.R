@@ -1,3 +1,5 @@
+source(here("src/col_palettes.R"))
+
 cn_colours <- structure(
   c(
     "#3182BD", "#9ECAE1", "#CCCCCC", "#FDCC8A", "#FC8D59", "#E34A33",
