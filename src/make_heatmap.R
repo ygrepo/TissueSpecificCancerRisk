@@ -106,28 +106,28 @@ make_heatmap_tree <- function(treefile,
   cat("Filtered CNV data has", nrow(cnaneuploid), "rows for", length(unique(cnaneuploid$cell_id)), "cells\n")
   
   # Fix mixed data types that cause plotting errors
-  cnaneuploid <- cnaneuploid %>%
-    mutate(
-      # Ensure consistent character types
-      chr = as.character(chr),
-      cell_id = as.character(cell_id),
-      patient = as.character(patient),
-      Data_Type = as.character(Data_Type),
-      Sample_Name = as.character(Sample_Name),
-      
-      # Handle columns that might have mixed types
-      Genotype = as.character(Genotype),
-      Group = as.character(Group),
-      
-      # Ensure numeric columns are properly numeric
-      state = as.numeric(as.character(state)),
-      start = as.numeric(as.character(start)),
-      end = as.numeric(as.character(end)),
-      segment_size_bp = as.numeric(as.character(segment_size_bp)),
-      segment_size_MB = as.numeric(as.character(segment_size_MB))
-    )
-  
-  cat("Data types standardized successfully\n")
+  # cnaneuploid <- cnaneuploid %>%
+  #   mutate(
+  #     # Ensure consistent character types
+  #     chr = as.character(chr),
+  #     cell_id = as.character(cell_id),
+  #     patient = as.character(patient),
+  #     Data_Type = as.character(Data_Type),
+  #     Sample_Name = as.character(Sample_Name),
+  #     
+  #     # Handle columns that might have mixed types
+  #     Genotype = as.character(Genotype),
+  #     Group = as.character(Group),
+  #     
+  #     # Ensure numeric columns are properly numeric
+  #     state = as.numeric(as.character(state)),
+  #     start = as.numeric(as.character(start)),
+  #     end = as.numeric(as.character(end)),
+  #     segment_size_bp = as.numeric(as.character(segment_size_bp)),
+  #     segment_size_MB = as.numeric(as.character(segment_size_MB))
+  #   )
+  # 
+  # cat("Data types standardized successfully\n")
   
   # NEW: Chromosome diagnostic
   cat("=== CHROMOSOME DIAGNOSTIC ===\n")
