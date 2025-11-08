@@ -20,7 +20,7 @@ cd "${PROJECT_DIR}"
 
 # Load required modules
 module purge
-module load R/4.3.0
+module load R/4.4.3
 
 # Create logs and output directories
 mkdir -p logs plots
