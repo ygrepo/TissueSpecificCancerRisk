@@ -13,6 +13,7 @@ library(magick)
 ht_opt$message = FALSE
 library(here)
 source(here("src/heatmap_plot.R"))
+source(here("src/col_palettes.R"))
 
 
 #' Generate a Heatmap Aligned with a Phylogenetic Tree
