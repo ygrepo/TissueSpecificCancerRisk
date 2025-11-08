@@ -30,7 +30,7 @@ echo "Starting heatmap generation..."
 # Run the heatmap script with command-line arguments
 Rscript src/make_heatmap.R \
     --treefile "trees/SA501/tree.newick" \
-    --cnv_data "data/SA501_cnv_data.csv" \
+    --cnv_data "data/SA501.tbnc.cnv.csv" \
     --output "data/figures/SA501_heatmap.pdf" \
     --width 20 \
     --height 12 \
