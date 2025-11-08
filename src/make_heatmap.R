@@ -187,7 +187,10 @@ make_heatmap_tree <- function(treefile,
     reorderclusters = TRUE,
     tree_width = tree_width,
     clone_pal = clone_colors,
-    clusters = clusters
+    clusters = clusters,
+    labels_rot = 45,        # Rotate labels 45 degrees
+    extend_val = 0.1,       # More space for labels
+    linkheight = 4
   )
   
   # Capture the plot as a grid object

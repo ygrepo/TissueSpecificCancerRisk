@@ -206,7 +206,7 @@ make_tree_ggplot <- function(tree, clones, clone_pal = NULL, ladderize = TRUE) {
     tree_aes <- ggplot2::aes(x, y)
   }
 
-  p <- ggtree::ggtree(tree, tree_aes, size = 0.25, ladderize = ladderize) +
+  p <- ggtree::ggtree(tree, tree_aes, linewidth = 0.25, ladderize = ladderize) +
     ggplot2::coord_cartesian(expand = FALSE) +
     ggplot2::ylim(0.5, length(tree$tip.label) + 0.5) +
     ggplot2::theme_void()
@@ -673,7 +673,9 @@ make_bottom_annot <- function(copynumber,
                               labeladjust = -1,
                               annotation_height = NULL, 
                               annofontsize = 14,
-                              linkheight = 1) {
+                              linkheight = 1,
+                              labels_rot = 45,    
+                              extend_val = 0.05) {
   if (chrlabels[1] == FALSE) {
     return(NULL)
   } else if (chrlabels[1] == TRUE) {
@@ -698,7 +700,7 @@ make_bottom_annot <- function(copynumber,
       link_height = grid::unit(linkheight, "mm"),
       side = "bottom",
       labels_gp = grid::gpar(fontsize = annofontsize),
-      padding = grid::unit(labeladjust, "mm"), extend = 0.01, labels_rot = 0
+      padding = grid::unit(labeladjust, "mm"), extend = extend_val, labels_rot = labels_rot
     ), show_annotation_name = FALSE,
     annotation_height = annotation_height)
   }
@@ -963,7 +965,9 @@ make_copynumber_heatmap <- function(copynumber,
       annotation_height = annotation_height,
       labeladjust = labeladjust,
       annofontsize = annofontsize,
-      linkheight = linkheight
+      linkheight = linkheight,
+      labels_rot = labels_rot,    # Add this
+      extend_val = extend_val     # Add this
     ),
     heatmap_legend_param = leg_params,
     top_annotation = make_top_annotation_gain(copynumber,
@@ -1101,6 +1105,8 @@ plotHeatmap <- function(cn,
                         rasterquality = 15,
                         tree_width = 4,
                         ladderize = TRUE,
+                        labels_rot = 45,   
+                        extend_val = 0.05,   
                         ...) {
   if (is.hscn(cn) | is.ascn(cn)) {
     CNbins <- cn$data
