@@ -12,7 +12,8 @@ library(magick)
 # Suppress ComplexHeatmap messages
 ht_opt$message = FALSE
 library(here)
-source(here("src/plotHeatmap.R"))
+source(here("src/heatmap_plot.R"))
+
 
 #' Generate a Heatmap Aligned with a Phylogenetic Tree
 #' 
