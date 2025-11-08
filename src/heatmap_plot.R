@@ -1,4 +1,5 @@
 source(here("src/col_palettes.R"))
+source(here("src/print.methods.R"))
 
 cn_colours <- structure(
   c(
