@@ -169,67 +169,91 @@ make_heatmap_tree <- function(treefile,
     extend_val = 0.15,       # More space for labels
   )
   
-  # Capture the plot as a grid object
-  # Create the legend
-  cn_legend <- make_copynumber_legend(
-    font_size = 12,
-    ncolcn = 2,
-    cnonly = TRUE,
-    cntitle = "Copy\nNumber"
+  # # Capture the plot as a grid object
+  # # Create the legend
+  # cn_legend <- make_copynumber_legend(
+  #   font_size = 12,
+  #   ncolcn = 2,
+  #   cnonly = TRUE,
+  #   cntitle = "Copy\nNumber"
+  # )
+  
+  # Create legend for bottom-left positioning
+  cn_legend <- ComplexHeatmap::Legend(
+    title = "Copy Number",
+    labels = c("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11+"),
+    legend_gp = grid::gpar(fill = c("#3182BD", "#9ECAE1", "#CCCCCC", "#FDCC8A", 
+                                    "#FC8D59", "#E34A33", "#B30000", "#980043", 
+                                    "#DD1C77", "#DF65B0", "#C994C7", "#D4B9DA")),
+    labels_gp = grid::gpar(fontsize = 10),
+    title_gp = grid::gpar(fontsize = 12, fontface = "bold"),
+    grid_height = grid::unit(4, "mm"),
+    grid_width = grid::unit(4, "mm"),
+    ncol = 6,  # Horizontal layout for bottom placement
+    direction = "horizontal"
   )
   
   # Capture the plot as a grid object (without legend for return value)
   pout <- grid.grabExpr(draw(p), width = plot_width, height = plot_height)
   
-  # Save output if requested
+  # Save output with custom legend positioning
   if (!is.null(output_file)) {
-    # Determine file type from extension
     ext <- tools::file_ext(output_file)
     
     if (ext %in% c("pdf", "PDF")) {
-      pdf(output_file, width = plot_width + 2, height = plot_height)  # Extra width for legend
-      draw(p, heatmap_legend_side = "right")
-      # Add the custom legend
-      pushViewport(viewport(x = 0.85, y = 0.5, width = 0.15, height = 0.8))
+      pdf(output_file, width = plot_width, height = plot_height + 1)  # Extra height for bottom legend
+      
+      # Draw main heatmap
+      draw(p)
+      
+      # Add legend at bottom left
+      pushViewport(viewport(x = 0.15, y = 0.05, width = 0.7, height = 0.1, just = c("left", "bottom")))
       grid.draw(cn_legend)
       popViewport()
+      
       dev.off()
     } else if (ext %in% c("png", "PNG")) {
-      png(output_file, width = (plot_width + 2) * 100, height = plot_height * 100, res = 300)
-      draw(p, heatmap_legend_side = "right")
-      # Add the custom legend
-      pushViewport(viewport(x = 0.85, y = 0.5, width = 0.15, height = 0.8))
+      png(output_file, width = plot_width * 100, height = (plot_height + 1) * 100, res = 300)
+      
+      # Draw main heatmap
+      draw(p)
+      
+      # Add legend at bottom left
+      pushViewport(viewport(x = 0.15, y = 0.05, width = 0.7, height = 0.1, just = c("left", "bottom")))
       grid.draw(cn_legend)
       popViewport()
+      
       dev.off()
-    } else {
-      warning("Unsupported file format. Supported formats: pdf, png")
     }
   }
-  
-  return(list(hm = pout, tree = mytree))
   # 
-  # pout <- grid.grabExpr(draw(p), width = plot_width, height = plot_height)
-  # 
-  # # Save output if requested
   # if (!is.null(output_file)) {
   #   # Determine file type from extension
   #   ext <- tools::file_ext(output_file)
   #   
   #   if (ext %in% c("pdf", "PDF")) {
-  #     pdf(output_file, width = plot_width, height = plot_height)
-  #     draw(p)
+  #     pdf(output_file, width = plot_width + 2, height = plot_height)  # Extra width for legend
+  #     draw(p, heatmap_legend_side = "right")
+  #     # Add the custom legend
+  #     pushViewport(viewport(x = 0.85, y = 0.5, width = 0.15, height = 0.8))
+  #     grid.draw(cn_legend)
+  #     popViewport()
   #     dev.off()
   #   } else if (ext %in% c("png", "PNG")) {
-  #     png(output_file, width = plot_width * 100, height = plot_height * 100, res = 300)
-  #     draw(p)
+  #     png(output_file, width = (plot_width + 2) * 100, height = plot_height * 100, res = 300)
+  #     draw(p, heatmap_legend_side = "right")
+  #     # Add the custom legend
+  #     pushViewport(viewport(x = 0.85, y = 0.5, width = 0.15, height = 0.8))
+  #     grid.draw(cn_legend)
+  #     popViewport()
   #     dev.off()
   #   } else {
   #     warning("Unsupported file format. Supported formats: pdf, png")
   #   }
   # }
-  # 
-  # return(list(hm = pout, tree = mytree))
+  
+  return(list(hm = pout, tree = mytree))
+  
 }
 
 # Main function with argparse

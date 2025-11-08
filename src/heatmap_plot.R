@@ -664,48 +664,6 @@ get_chrom_label_pos <- function(copynumber, Mb = TRUE, nticks = 3) {
   }
   return(chrom_label_pos)
 }
-# 
-# make_bottom_annot <- function(copynumber,
-#                               chrlabels = TRUE,
-#                               filterlabels = NULL,
-#                               nticks = 3,
-#                               Mb = TRUE,
-#                               labeladjust = -1,
-#                               annotation_height = NULL, 
-#                               annofontsize = 14,
-#                               linkheight = 1,
-#                               labels_rot = 45,    
-#                               extend_val = 0.05) {
-#   if (chrlabels[1] == FALSE) {
-#     return(NULL)
-#   } else if (chrlabels[1] == TRUE) {
-#     chrom_label_pos <- get_chrom_label_pos(copynumber, Mb = Mb, nticks = nticks)
-#     bottom_annot <- ComplexHeatmap::HeatmapAnnotation(chrom_labels = ComplexHeatmap::anno_mark(
-#       at = as.vector(unlist(chrom_label_pos)),
-#       labels = names(chrom_label_pos),
-#       link_height = grid::unit(linkheight, "mm"),
-#       labels_gp = grid::gpar(fontsize = annofontsize),
-#       side = "bottom",
-#       padding = grid::unit(labeladjust, "mm"), 
-#       extend = 0.01, 
-#       labels_rot = 0
-#     ), show_annotation_name = FALSE,
-#     annotation_height = annotation_height)
-#   } else {
-#     chrom_label_pos <- get_chrom_label_pos(copynumber)
-#     chrom_label_pos <- chrom_label_pos[chrlabels]
-#     bottom_annot <- ComplexHeatmap::HeatmapAnnotation(chrom_labels = ComplexHeatmap::anno_mark(
-#       at = as.vector(unlist(chrom_label_pos)),
-#       labels = names(chrom_label_pos),
-#       link_height = grid::unit(linkheight, "mm"),
-#       side = "bottom",
-#       labels_gp = grid::gpar(fontsize = annofontsize),
-#       padding = grid::unit(labeladjust, "mm"), extend = extend_val, labels_rot = labels_rot
-#     ), show_annotation_name = FALSE,
-#     annotation_height = annotation_height)
-#   }
-#   return(bottom_annot)
-# }
 
 make_bottom_annot <- function(copynumber,
                               chrlabels = TRUE,
@@ -729,8 +687,8 @@ make_bottom_annot <- function(copynumber,
       labels_gp = grid::gpar(fontsize = annofontsize),
       side = "bottom",
       padding = grid::unit(labeladjust, "mm"), 
-      extend = extend_val,     # <- Fixed: use the parameter
-      labels_rot = labels_rot  # <- Fixed: use the parameter
+      extend = extend_val,    
+      labels_rot = labels_rot  
     ), show_annotation_name = FALSE,
     annotation_height = annotation_height)
   } else {
@@ -743,8 +701,8 @@ make_bottom_annot <- function(copynumber,
       side = "bottom",
       labels_gp = grid::gpar(fontsize = annofontsize),
       padding = grid::unit(labeladjust, "mm"), 
-      extend = extend_val,     # <- This was already correct
-      labels_rot = labels_rot  # <- This was already correct
+      extend = extend_val,     
+      labels_rot = labels_rot 
     ), show_annotation_name = FALSE,
     annotation_height = annotation_height)
   }
@@ -950,8 +908,8 @@ make_copynumber_heatmap <- function(copynumber,
                                     str_to_remove = NULL,
                                     anno_width = 0.4,
                                     rasterquality = 15,
-                                    labels_rot = 45,     # Add this
-                                    extend_val = 0.05,   # Add this
+                                    labels_rot = 45,     
+                                    extend_val = 0.05,  
                                     ...) {
   
   if (class(colvals) == "function"){

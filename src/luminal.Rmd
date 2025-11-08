@@ -1,0 +1,109 @@
+---
+title: "17q13q: Luminal Epithelial Data"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: united
+    code_folding: show
+---
+
+
+# **Editing CNV Data for Sitka Binary Matrix**
+## *Luminal Epithelial Data*
+### LUMI: Library for Generating Data
+```{r message=FALSE, warning=FALSE}
+#install.packages("tidyverse")
+library(tidyverse)
+#install.packages("dplyr")
+library(dplyr)
+# install.packages("readr")
+library(readr)
+# install.packages("gt")
+library(gt)
+# install.packages("vroom")
+library(vroom)
+#install.packages("openxlsx")
+library(openxlsx)
+#install.packages("ape")
+library(ape)
+#install.packages("ggtree")
+library(ggtree)
+```
+
+### LUMI: Load CNV Data
+```{r}
+read_cnv_data <- function(filepath) {
+#!!!!!!!!!!!!!!!!!!!!!!!!! EDIT RAW FILES !!!!!!!!!!!!!!!!!!!!!!!!!
+  #read and process CNV data
+  cnv_data <- read.csv(filepath) %>%
+    mutate(
+      genotype = ifelse(grepl("B1-6548", sample), "B1/B2", sub("-.*", "", sample)), #rename samples
+      sample = gsub("-", ".", sample) #rename samples
+    ) %>%
+    dplyr::select(cell_id, chr, state, A, B, LOH, BAF, sample, genotype, start, end) #filter columns
+  
+  #read in sample info
+  cancer.history <- read.xlsx("~/brca-new/Williams et al./williams-samples.xlsx")
+  cancer.history <- cancer.history %>% 
+    mutate(patient_id = gsub("-", ".", patient_id)) %>% #rename samples
+    dplyr::rename(
+                  sample = patient_id,  # correct direction: new = old
+                  cancer = current_past_cancer.in.contralateral.breast,
+                  tissue = Final.Path.Diagnosis) %>%
+    dplyr::select(sample, chemo, cancer, tissue)
+  
+  #edit sample info
+  cancer.history$chemo <- gsub("N/A", "no chemo", cancer.history$chemo) 
+  cancer.history$chemo <- gsub("N", "no chemo", cancer.history$chemo) 
+  cancer.history$chemo <- gsub("Y", "chemo", cancer.history$chemo) 
+  cancer.history$tissue <- gsub("R:", "", cancer.history$tissue) 
+  cancer.history$tissue <- gsub("R: ", "", cancer.history$tissue) 
+  cancer.history$tissue <- gsub("L: ", "", cancer.history$tissue)
+  cancer.history$tissue <- gsub(" UDH", "", cancer.history$tissue)
+  cancer.history$tissue <- gsub(" cysts", "", cancer.history$tissue)
+  cancer.history$tissue <- gsub(" non-proliferative", "", cancer.history$tissue)
+  cancer.history$tissue <- gsub(" ", "", cancer.history$tissue)
+
+
+  #add sample info to df
+  cnv_data <- cnv_data %>%
+    left_join(cancer.history, by = "sample")
+
+#!!!!!!!!!!!!!!!!!!!!!!!!! NAME SAMPLE DFS !!!!!!!!!!!!!!!!!!!!!!!!!
+  #generate name
+  if ("sample" %in% colnames(cnv_data)) {
+    sample_name <- unique(cnv_data$sample)[1]
+  } else {
+    sample_name <- tools::file_path_sans_ext(basename(filepath))
+  }
+
+  #assign df and gr to global environment
+  assign(paste0(sample_name, "_df"), cnv_data, envir = .GlobalEnv)
+
+  #return sample name
+  df = assign(paste0(sample_name, "_df"), cnv_data, envir = .GlobalEnv)
+}
+
+#arrange file paths
+files <- c(
+  "/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B1HET43-hscn.csv",
+  "/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B1HET49-hscn.csv",
+  "/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B1HET6410-hscn.csv",
+  "/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B1HET6537-hscn.csv",
+  "/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B1HET6548-hscn.csv",
+  "/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B1HET6550-hscn.csv",
+  "/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B2HET16-hscn.csv",
+  "/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B2HET18-hscn.csv",
+  "/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B2HET21-hscn.csv",
+  "/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B2HET23-hscn.csv",
+  "/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B2HET25-hscn.csv",
+  "/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B2HET6532-hscn.csv",
+  "/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/WT6-hscn.csv",
+  "/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/WT62-hscn.csv",
+  "/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/WT6752-hscn.csv"
+)
+
+#run pipeline
+lapply(files, read_cnv_data)
+```
