@@ -31,7 +31,7 @@ echo "Starting heatmap generation..."
 Rscript src/make_heatmap.R \
     --treefile "trees/SA501/tree.newick" \
     --cnv_data "data/SA501.tbnc.cnv.csv" \
-    --output "data/figures/SA501_heatmap.pdf" \
+    --output "output/figures/SA501_heatmap.pdf" \
     --width 20 \
     --height 12 \
     --title "SA501 Copy Number Heatmap" \
