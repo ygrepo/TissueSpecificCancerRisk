@@ -105,31 +105,7 @@ make_heatmap_tree <- function(treefile,
   
   cat("Filtered CNV data has", nrow(cnaneuploid), "rows for", length(unique(cnaneuploid$cell_id)), "cells\n")
   
-  # Fix mixed data types that cause plotting errors
-  # cnaneuploid <- cnaneuploid %>%
-  #   mutate(
-  #     # Ensure consistent character types
-  #     chr = as.character(chr),
-  #     cell_id = as.character(cell_id),
-  #     patient = as.character(patient),
-  #     Data_Type = as.character(Data_Type),
-  #     Sample_Name = as.character(Sample_Name),
-  #     
-  #     # Handle columns that might have mixed types
-  #     Genotype = as.character(Genotype),
-  #     Group = as.character(Group),
-  #     
-  #     # Ensure numeric columns are properly numeric
-  #     state = as.numeric(as.character(state)),
-  #     start = as.numeric(as.character(start)),
-  #     end = as.numeric(as.character(end)),
-  #     segment_size_bp = as.numeric(as.character(segment_size_bp)),
-  #     segment_size_MB = as.numeric(as.character(segment_size_MB))
-  #   )
-  # 
-  # cat("Data types standardized successfully\n")
-  
-  # NEW: Chromosome diagnostic
+  # Chromosome diagnostic
   cat("=== CHROMOSOME DIAGNOSTIC ===\n")
   actual_chroms <- sort(unique(cnaneuploid$chr))
   expected_chroms <- chroms
@@ -178,7 +154,9 @@ make_heatmap_tree <- function(treefile,
     plotfrequency = FALSE,
     frequency_height = 0.5,
     anno_width = 0.02,
-    annofontsize = 7,
+    annofontsize = 12,
+    linkheight = linkheight,
+    labeladjust = -8,
     show_legend = FALSE,
     show_clone_text = FALSE,
     show_library_label = FALSE,
@@ -188,8 +166,8 @@ make_heatmap_tree <- function(treefile,
     tree_width = tree_width,
     clone_pal = clone_colors,
     clusters = clusters,
-    labels_rot = 45,        # Rotate labels 45 degrees
-    extend_val = 0.1,       # More space for labels
+    labels_rot = 0,        # Rotate labels 45 degrees
+    extend_val = 0.15,       # More space for labels
   )
   
   # Capture the plot as a grid object
@@ -258,10 +236,10 @@ main <- function() {
   parser$add_argument("--title", type = "character", default = "",
                       help = "Plot title (default: empty)")
   
-  parser$add_argument("--tree_width", type = "double", default = 1,
+  parser$add_argument("--tree_width", type = "double", default = 6,
                       help = "Width of the tree portion (default: 1)")
   
-  parser$add_argument("--linkheight", type = "double", default = 4,
+  parser$add_argument("--linkheight", type = "double", default = 8,
                       help = "Height of the linking lines (default: 4)")
   
   parser$add_argument("--chroms", type = "character", nargs = "*",
