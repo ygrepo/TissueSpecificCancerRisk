@@ -190,7 +190,6 @@ make_heatmap_tree <- function(treefile,
     clusters = clusters,
     labels_rot = 45,        # Rotate labels 45 degrees
     extend_val = 0.1,       # More space for labels
-    linkheight = 4
   )
   
   # Capture the plot as a grid object
@@ -262,8 +261,8 @@ main <- function() {
   parser$add_argument("--tree_width", type = "double", default = 1,
                       help = "Width of the tree portion (default: 1)")
   
-  parser$add_argument("--linkheight", type = "double", default = 2,
-                      help = "Height of the linking lines (default: 2)")
+  parser$add_argument("--linkheight", type = "double", default = 4,
+                      help = "Height of the linking lines (default: 4)")
   
   parser$add_argument("--chroms", type = "character", nargs = "*",
                       default = NULL,
