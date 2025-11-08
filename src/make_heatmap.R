@@ -170,6 +170,15 @@ make_heatmap_tree <- function(treefile,
   )
   
   # Capture the plot as a grid object
+  # Create the legend
+  cn_legend <- make_copynumber_legend(
+    font_size = 12,
+    ncolcn = 2,
+    cnonly = TRUE,
+    cntitle = "Copy\nNumber"
+  )
+  
+  # Capture the plot as a grid object (without legend for return value)
   pout <- grid.grabExpr(draw(p), width = plot_width, height = plot_height)
   
   # Save output if requested
@@ -178,12 +187,20 @@ make_heatmap_tree <- function(treefile,
     ext <- tools::file_ext(output_file)
     
     if (ext %in% c("pdf", "PDF")) {
-      pdf(output_file, width = plot_width, height = plot_height)
-      draw(p)
+      pdf(output_file, width = plot_width + 2, height = plot_height)  # Extra width for legend
+      draw(p, heatmap_legend_side = "right")
+      # Add the custom legend
+      pushViewport(viewport(x = 0.85, y = 0.5, width = 0.15, height = 0.8))
+      grid.draw(cn_legend)
+      popViewport()
       dev.off()
     } else if (ext %in% c("png", "PNG")) {
-      png(output_file, width = plot_width * 100, height = plot_height * 100, res = 300)
-      draw(p)
+      png(output_file, width = (plot_width + 2) * 100, height = plot_height * 100, res = 300)
+      draw(p, heatmap_legend_side = "right")
+      # Add the custom legend
+      pushViewport(viewport(x = 0.85, y = 0.5, width = 0.15, height = 0.8))
+      grid.draw(cn_legend)
+      popViewport()
       dev.off()
     } else {
       warning("Unsupported file format. Supported formats: pdf, png")
@@ -191,6 +208,28 @@ make_heatmap_tree <- function(treefile,
   }
   
   return(list(hm = pout, tree = mytree))
+  # 
+  # pout <- grid.grabExpr(draw(p), width = plot_width, height = plot_height)
+  # 
+  # # Save output if requested
+  # if (!is.null(output_file)) {
+  #   # Determine file type from extension
+  #   ext <- tools::file_ext(output_file)
+  #   
+  #   if (ext %in% c("pdf", "PDF")) {
+  #     pdf(output_file, width = plot_width, height = plot_height)
+  #     draw(p)
+  #     dev.off()
+  #   } else if (ext %in% c("png", "PNG")) {
+  #     png(output_file, width = plot_width * 100, height = plot_height * 100, res = 300)
+  #     draw(p)
+  #     dev.off()
+  #   } else {
+  #     warning("Unsupported file format. Supported formats: pdf, png")
+  #   }
+  # }
+  # 
+  # return(list(hm = pout, tree = mytree))
 }
 
 # Main function with argparse
