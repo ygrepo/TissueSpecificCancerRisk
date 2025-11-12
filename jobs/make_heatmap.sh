@@ -35,7 +35,7 @@ Rscript src/make_heatmap.R \
     --width 20 \
     --height 12 \
     --title "SA501 Copy Number Heatmap" \
-    --tree_width 18 \
+    --tree_width 12 \
     --linkheight 8
 
 echo "Heatmap generation completed."
