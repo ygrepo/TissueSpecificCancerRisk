@@ -1,21 +1,28 @@
 library(ggplot2)
 library(ggtree)
 library(ape)      # For the read.tree function
-
+library(here)
+source(here("src/heatmap_plot.R"))
+source(here("src/col_palettes.R"))
 
 # Set your file path
-newick_file <- "tree.newick" # Or "results/latest/tree.newick"
+treefile <- "tree.newick" # Or "results/latest/tree.newick"
 
 # Read the tree data
-my_tree <- read.tree(newick_file)
+mytree <- ape::read.tree(file = treefile)
+cat("Tree has", length(mytree$tip.label), "tips\n")
 
-# --- Basic Plot (Rectangular) ---
-ggtree(my_tree) +
-  geom_tiplab(size = 3, align = TRUE) + # Add tip labels (cell names)
-  geom_treescale() +                     # Add a scale bar
-  theme_tree2()
 
-# --- Fancier Plot (Circular) ---
-ggtree(my_tree, layout = "circular") +
-  geom_tiplab(size = 3, align = TRUE, linesize = 0.2) +
-  theme(legend.position = "none") # Hide legend if there is one
+if (normalize_tree == T) {
+  tree <- format_tree(tree, branch_length)
+}
+
+tree_ggplot <- make_tree_ggplot(tree,
+                                as.data.frame(clusters),
+                                clone_pal = clone_pal,
+                                ladderize = ladderize)
+tree_plot_dat <- tree_ggplot$data
+
+message("Creating tree...")
+tree_hm <- make_corrupt_tree_heatmap(tree_ggplot, tree_width = tree_width)
+ordered_cell_ids <- get_ordered_cell_ids(tree_plot_dat)

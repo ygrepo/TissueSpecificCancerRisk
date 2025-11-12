@@ -35,8 +35,8 @@ Rscript src/make_heatmap.R \
     --width 20 \
     --height 12 \
     --title "B216 Copy Number Heatmap" \
-    --tree_width 6 \
-    --linkheight 8
+    --tree_width 1 \
+    --linkheight 2
 
 echo "Heatmap generation completed."
 echo "Job finished."
