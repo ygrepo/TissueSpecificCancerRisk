@@ -29,13 +29,13 @@ echo "Starting heatmap generation..."
 
 # Run the heatmap script with command-line arguments
 Rscript src/make_heatmap.R \
-    --treefile "trees/SA501/tree.newick" \
-    --cnv_data "data/SA501.tbnc.cnv.csv" \
-    --output "output/figures/SA501_heatmap.pdf" \
+    --treefile "trees/B216/tree.newick" \
+    --cnv_data "data/B2HET16-hscn.csv" \
+    --output "output/figures/B216_heatmap.pdf" \
     --width 20 \
     --height 12 \
-    --title "SA501 Copy Number Heatmap" \
-    --tree_width 12 \
+    --title "B216 Copy Number Heatmap" \
+    --tree_width 6 \
     --linkheight 8
 
 echo "Heatmap generation completed."
