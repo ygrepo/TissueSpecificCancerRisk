@@ -1239,6 +1239,7 @@ plotHeatmap <- function(cn,
   } else {
     CNbins <- cn
   }
+  print(paste("plottree,", plottree))
   
   if (widenarm == TRUE) {
     dlpbinsarm <- dlpbins %>%
