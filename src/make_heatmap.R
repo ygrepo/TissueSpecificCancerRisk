@@ -143,7 +143,7 @@ make_heatmap_tree <- function(treefile,
   }
   
   # --- Plotting ---
-  p <- plotHeatmap(
+    p <- plotHeatmap(
     cnaneuploid,
     tree = mytree %>% ape::ladderize(),
     column_title = title,

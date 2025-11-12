@@ -371,9 +371,30 @@ format_clones <- function(clones, ordered_cell_ids) {
 make_corrupt_tree_heatmap <- function(tree_ggplot, tree_width, ...) {
   tree_annot_func <- ComplexHeatmap::AnnotationFunction(
     fun = function(index) {
+      # --- Start of Fix ---
+      # Convert the ggplot object to a grob
+      g <- ggplot2::ggplotGrob(tree_ggplot)
+      
+      # Find the layout name that corresponds to the main plot panel
+      # This is robust, unlike hard-coding an index like [[5]]
+      panel_index <- which(g$layout$name == "panel")
+      
+      # Basic error checking
+      if (length(panel_index) == 0) {
+        stop("Could not find 'panel' in ggplot grob layout.")
+      } else if (length(panel_index) > 1) {
+        # This shouldn't happen with ggtree, but just in case
+        panel_index <- panel_index[1]
+      }
+      
+      # Extract the correct grob
+      panel_grob <- g$grobs[[panel_index]]
+      
+      # Push the viewport and draw the correct panel
       pushViewport(viewport(height = 1))
-      grid.draw(ggplot2::ggplotGrob(tree_ggplot)$grobs[[5]])
+      grid.draw(panel_grob) 
       popViewport()
+      # --- End of Fix ---
     },
     var_import = list(tree_ggplot = tree_ggplot),
     width = grid::unit(tree_width, "cm"),
@@ -388,6 +409,27 @@ make_corrupt_tree_heatmap <- function(tree_ggplot, tree_width, ...) {
   
   return(tree_hm)
 }
+# 
+# make_corrupt_tree_heatmap <- function(tree_ggplot, tree_width, ...) {
+#   tree_annot_func <- ComplexHeatmap::AnnotationFunction(
+#     fun = function(index) {
+#       pushViewport(viewport(height = 1))
+#       grid.draw(ggplot2::ggplotGrob(tree_ggplot)$grobs[[5]])
+#       popViewport()
+#     },
+#     var_import = list(tree_ggplot = tree_ggplot),
+#     width = grid::unit(tree_width, "cm"),
+#     which = "row"
+#   )
+#   tree_annot <- ComplexHeatmap::HeatmapAnnotation(tree = tree_annot_func,
+#                                                   which = "row",
+#                                                   show_annotation_name = FALSE)
+#   
+#   n_cells <- sum(tree_ggplot$data$isTip)
+#   tree_hm <- ComplexHeatmap::Heatmap(matrix(ncol = 0, nrow = n_cells), left_annotation = tree_annot, ...)
+#   
+#   return(tree_hm)
+# }
 
 find_largest_contiguous_group <- function(x) {
   starts <- c(1, which(diff(x) != 1 & diff(x) != 0) + 1)
