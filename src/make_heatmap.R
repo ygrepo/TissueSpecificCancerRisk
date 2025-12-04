@@ -8,7 +8,8 @@ library(grid)
 library(ComplexHeatmap)
 #library(signals)
 library(magick)
-
+library(tidyr)
+library(ggtree)
 # Suppress ComplexHeatmap messages
 ht_opt$message = FALSE
 library(here)
@@ -40,6 +41,7 @@ make_heatmap_tree <- function(treefile,
                               title = "",
                               tree_width = 1,
                               linkheight = 2,
+                              chr13_17_deletion = F,
                               clone_colors = c("A" = "firebrick4", "B" = "deepskyblue4")) {
   
   # Validate inputs
@@ -105,6 +107,124 @@ make_heatmap_tree <- function(treefile,
   
   cat("Filtered CNV data has", nrow(cnaneuploid), "rows for", length(unique(cnaneuploid$cell_id)), "cells\n")
   
+  annotations_df <- NULL
+  if (chr13_17_deletion) {
+    message("Generating chr13/17 deletion annotations...")
+    
+    # -------------------------------------------------------------------
+    # 1. Build a wide tibble (chr13 / chr17) from cnaneuploid
+    #    This mirrors your code:
+    #    - del = 1 if state < 2
+    #    - binary deletion per (cell_id, chr) if mean(del) >= 0.5
+    #    - pivot_wider to columns chr13 / chr17
+    #    - fill missing cells with 0
+    # -------------------------------------------------------------------
+    cnv_filtered_lumi <- cnaneuploid %>%
+      mutate(del = ifelse(state < 2, 1, 0)) %>%
+      group_by(cell_id, chr) %>%
+      summarise(binary = mean(del) >= 0.50, .groups = "drop") %>%
+      mutate(binary = as.numeric(binary))
+    
+    message("Found ", nrow(cnv_filtered_lumi), " cell-chromosome combinations")
+    message("Deletions found: ", sum(cnv_deletions$binary))
+    
+    cnv_wide <- cnv_filtered_lumi %>%
+      filter(chr %in% c("13", "17")) %>%
+      tidyr::pivot_wider(
+        names_from  = chr,
+        values_from = binary,
+        names_prefix = "chr"
+      )
+
+    # Ensure we have all tree tips, and convert NAs -> 0 (no deletion)
+    all_cells <- data.frame(cell_id = mytree$tip.label)
+    cnv_wide <- all_cells %>%
+      left_join(cnv_wide, by = "cell_id") %>%
+      mutate(
+        chr13 = tidyr::replace_na(chr13, 0),
+        chr17 = tidyr::replace_na(chr17, 0)
+      )
+    
+    # -------------------------------------------------------------------
+    # 2. Collapse to categorical Deletion label
+    # -------------------------------------------------------------------
+    cnv_wide_deletions <- cnv_wide %>%
+      mutate(
+        Deletion = dplyr::case_when(
+          chr17 == 1 & chr13 == 1 ~ "Both",
+          chr17 == 1             ~ "17q",
+          chr13 == 1             ~ "13q",
+          TRUE                   ~ "None"
+        )
+      ) %>%
+      dplyr::select(cell_id, Deletion)
+    
+    deletion_summary <- table(cnv_wide_deletions$Deletion)
+    message(
+      "Deletion summary: ",
+      paste(names(deletion_summary), "=", deletion_summary, collapse = ", ")
+    )
+    
+    # # 1. Use the filtered 'cnaneuploid' data to find deletions
+    # cnv_deletions <- cnaneuploid %>%
+    #   filter(chr %in% c("17", "13")) %>%
+    #   mutate(binary = ifelse(state < 2, 1, 0)) %>%
+    #   dplyr::select(cell_id, chr, binary) %>%
+    #   group_by(cell_id, chr) %>%
+    #   summarise(binary = max(binary), .groups = "drop")
+    # 
+    # message("Found ", nrow(cnv_deletions), " cell-chromosome combinations")
+    # message("Deletions found: ", sum(cnv_deletions$binary))
+    # 
+    
+    # # 2. Pivot to wide format
+    # cnv_wide_deletions <- cnv_deletions %>%
+    #   tidyr::pivot_wider( # Corrected: Added tidyr:: prefix for safety
+    #     names_from = chr,
+    #     values_from = binary,
+    #     names_prefix = "chr",
+    #     values_fill = 0
+    #   ) %>%
+    #   mutate(Deletion = case_when( # Using 'Deletion' as the column name
+    #     chr17 == 1 & chr13 == 1 ~ "Both",
+    #     chr17 == 1 ~ "17q",
+    #     chr13 == 1 ~ "13q",
+    #     TRUE ~ "None"
+    #   )) %>%
+    #   dplyr::select(cell_id, Deletion)
+    # 
+    # deletion_summary <- table(cnv_wide_deletions$Deletion)
+    # message("Deletion summary: ", paste(names(deletion_summary), "=", deletion_summary, collapse = ", "))
+    # 
+    # 3. Create the final annotations_df
+    all_cells <- data.frame(cell_id = mytree$tip.label)
+    
+    # --- START OF THE NEW LOGIC ---
+    if (!is.null(clusters)) {
+      # Case 1: --clusters was provided. Join both.
+      message("Joining clone clusters and deletion data...")
+      annotations_df <- all_cells %>%
+        left_join(as.data.frame(clusters), by = "cell_id") %>%
+        left_join(as.data.frame(cnv_wide_deletions), by = "cell_id")
+      
+      # Handle NAs for both
+      annotations_df$clone_id[is.na(annotations_df$clone_id)] <- "None"
+      annotations_df$Deletion[is.na(annotations_df$Deletion)] <- "None"
+      
+    } else {
+      # Case 2: --clusters was NOT provided. Join deletions only.
+      message("Joining deletion data only...")
+      annotations_df <- all_cells %>%
+        left_join(as.data.frame(cnv_wide_deletions), by = "cell_id")
+      
+      # Handle NAs for deletions only
+      annotations_df$Deletion[is.na(annotations_df$Deletion)] <- "None"
+    }
+    message("Final annotations_df has ", nrow(annotations_df), " rows")
+    message("Final deletion summary: ", paste(table(annotations_df$Deletion), collapse = ", "))
+  
+  }
+  
   # Chromosome diagnostic
   cat("=== CHROMOSOME DIAGNOSTIC ===\n")
   actual_chroms <- sort(unique(cnaneuploid$chr))
@@ -147,50 +267,29 @@ make_heatmap_tree <- function(treefile,
     cnaneuploid,
     tree = mytree %>% ape::ladderize(),
     column_title = title,
-    column_title_gp = gpar(fontsize = 8),
+    column_title_gp = gpar(fontsize = 10),
     linkheight = linkheight,
     chrlabels = chroms,
-    show_heatmap_legend = FALSE,
+    #show_heatmap_legend = FALSE,
     plotfrequency = FALSE,
     frequency_height = 0.5,
-    anno_width = 0.02,
+    anno_width = 0.05,
     annofontsize = 12,
     labeladjust = -8,
-    show_legend = FALSE,
-    show_clone_text = FALSE,
+    show_heatmap_legend = TRUE,
+    show_legend = TRUE,
+    show_clone_text = TRUE,
     show_library_label = FALSE,
-    show_clone_label = FALSE,
+    show_clone_label = TRUE,
     plottree = TRUE,
     reorderclusters = TRUE,
     tree_width = tree_width,
     clone_pal = clone_colors,
-    clusters = clusters,
+    clusters = NULL,
+    annotations = annotations_df, 
+    chr13_17_deletion = chr13_17_deletion, 
     labels_rot = 0,        # Rotate labels 45 degrees
     extend_val = 0.15,       # More space for labels
-  )
-  
-  # # Capture the plot as a grid object
-  # # Create the legend
-  # cn_legend <- make_copynumber_legend(
-  #   font_size = 12,
-  #   ncolcn = 2,
-  #   cnonly = TRUE,
-  #   cntitle = "Copy\nNumber"
-  # )
-  
-  # Create legend for bottom-left positioning
-  cn_legend <- ComplexHeatmap::Legend(
-    title = "Copy Number",
-    labels = c("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11+"),
-    legend_gp = grid::gpar(fill = c("#3182BD", "#9ECAE1", "#CCCCCC", "#FDCC8A", 
-                                    "#FC8D59", "#E34A33", "#B30000", "#980043", 
-                                    "#DD1C77", "#DF65B0", "#C994C7", "#D4B9DA")),
-    labels_gp = grid::gpar(fontsize = 10),
-    title_gp = grid::gpar(fontsize = 12, fontface = "bold"),
-    grid_height = grid::unit(4, "mm"),
-    grid_width = grid::unit(4, "mm"),
-    ncol = 6,  # Horizontal layout for bottom placement
-    direction = "horizontal"
   )
   
   # Capture the plot as a grid object (without legend for return value)
@@ -201,15 +300,10 @@ make_heatmap_tree <- function(treefile,
     ext <- tools::file_ext(output_file)
     
     if (ext %in% c("pdf", "PDF")) {
-      pdf(output_file, width = plot_width, height = plot_height + 1)  # Extra height for bottom legend
+      pdf(output_file, width = plot_width, height = plot_height)  # Extra height for bottom legend
       
       # Draw main heatmap
       draw(p)
-      
-      # Add legend at bottom left
-      pushViewport(viewport(x = 0.15, y = 0.05, width = 0.7, height = 0.1, just = c("left", "bottom")))
-      grid.draw(cn_legend)
-      popViewport()
       
       dev.off()
     } else if (ext %in% c("png", "PNG")) {
@@ -226,31 +320,6 @@ make_heatmap_tree <- function(treefile,
       dev.off()
     }
   }
-  # 
-  # if (!is.null(output_file)) {
-  #   # Determine file type from extension
-  #   ext <- tools::file_ext(output_file)
-  #   
-  #   if (ext %in% c("pdf", "PDF")) {
-  #     pdf(output_file, width = plot_width + 2, height = plot_height)  # Extra width for legend
-  #     draw(p, heatmap_legend_side = "right")
-  #     # Add the custom legend
-  #     pushViewport(viewport(x = 0.85, y = 0.5, width = 0.15, height = 0.8))
-  #     grid.draw(cn_legend)
-  #     popViewport()
-  #     dev.off()
-  #   } else if (ext %in% c("png", "PNG")) {
-  #     png(output_file, width = (plot_width + 2) * 100, height = plot_height * 100, res = 300)
-  #     draw(p, heatmap_legend_side = "right")
-  #     # Add the custom legend
-  #     pushViewport(viewport(x = 0.85, y = 0.5, width = 0.15, height = 0.8))
-  #     grid.draw(cn_legend)
-  #     popViewport()
-  #     dev.off()
-  #   } else {
-  #     warning("Unsupported file format. Supported formats: pdf, png")
-  #   }
-  # }
   
   return(list(hm = pout, tree = mytree))
   
@@ -289,10 +358,10 @@ main <- function() {
   parser$add_argument("-o", "--output", type = "character", default = NULL,
                       help = "Output file path (pdf or png)")
   
-  parser$add_argument("--width", type = "double", default = 89 * 0.039,
+  parser$add_argument("--width", type = "double", default = 5,
                       help = "Plot width (default: 3.471)")
   
-  parser$add_argument("--height", type = "double", default = 2,
+  parser$add_argument("--height", type = "double", default = 5,
                       help = "Plot height (default: 2)")
   
   parser$add_argument("--title", type = "character", default = "",
@@ -307,6 +376,9 @@ main <- function() {
   parser$add_argument("--chroms", type = "character", nargs = "*",
                       default = NULL,
                       help = "Chromosome labels (space-separated). If not provided, will auto-detect from data")
+  
+  parser$add_argument("--chr13_17_deletion", action = "store_true", default = FALSE,
+                      help = "Include chr13/17 deletion annotations")
   
   # Parse arguments
   args <- parser$parse_args(argv)
@@ -358,7 +430,8 @@ main <- function() {
       output_file = args$output,
       plot_width = args$width,
       plot_height = args$height,
-      chroms = chroms_to_use,  # Fixed: use chroms_to_use instead of args$chroms
+      chroms = chroms_to_use, 
+      chr13_17_deletion = args$chr13_17_deletion,
       title = args$title,
       tree_width = args$tree_width,
       linkheight = args$linkheight,

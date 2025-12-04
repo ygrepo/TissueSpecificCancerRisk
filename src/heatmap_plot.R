@@ -392,7 +392,7 @@ make_corrupt_tree_heatmap <- function(tree_ggplot, tree_width, ...) {
       
       # Push the viewport and draw the correct panel
       pushViewport(viewport(height = 1))
-      grid.draw(panel_grob) 
+      grid.draw(panel_grob)
       popViewport()
       # --- End of Fix ---
     },
@@ -409,27 +409,6 @@ make_corrupt_tree_heatmap <- function(tree_ggplot, tree_width, ...) {
   
   return(tree_hm)
 }
-# 
-# make_corrupt_tree_heatmap <- function(tree_ggplot, tree_width, ...) {
-#   tree_annot_func <- ComplexHeatmap::AnnotationFunction(
-#     fun = function(index) {
-#       pushViewport(viewport(height = 1))
-#       grid.draw(ggplot2::ggplotGrob(tree_ggplot)$grobs[[5]])
-#       popViewport()
-#     },
-#     var_import = list(tree_ggplot = tree_ggplot),
-#     width = grid::unit(tree_width, "cm"),
-#     which = "row"
-#   )
-#   tree_annot <- ComplexHeatmap::HeatmapAnnotation(tree = tree_annot_func,
-#                                                   which = "row",
-#                                                   show_annotation_name = FALSE)
-#   
-#   n_cells <- sum(tree_ggplot$data$isTip)
-#   tree_hm <- ComplexHeatmap::Heatmap(matrix(ncol = 0, nrow = n_cells), left_annotation = tree_annot, ...)
-#   
-#   return(tree_hm)
-# }
 
 find_largest_contiguous_group <- function(x) {
   starts <- c(1, which(diff(x) != 1 & diff(x) != 0) + 1)
@@ -480,9 +459,12 @@ get_library_labels <- function(cell_ids,
   })
   return(labels)
 }
-
+#' @param annotation_colors A named list where each name matches a column in dfanno,
+#'                          and the value is a named vector of colors.
+#'                          Example: list(Deletion = c("13q" = "blue", "17q" = "red"))
 make_left_annot_generic <- function(dfanno,
                                     palettes = NULL,
+                                    annotation_colors = NULL,
                                     show_legend = TRUE,
                                     annofontsize = 14,
                                     anno_width = 0.4) {
@@ -508,14 +490,24 @@ make_left_annot_generic <- function(dfanno,
   annot_colours <- list()
   for (i in seq_along(anno_cols)) {
     col <- anno_cols[i]
-    # Cycle through palettes
-    palette_idx <- ((i - 1) %% length(default_palettes)) + 1
-    current_palette <- default_palettes[palette_idx]
     
-    # Get unique values for this column
-    levels <- gtools::mixedsort(unique(dfanno[[col]]))
-    # Create palette for this annotation
-    annot_colours[[col]] <- make_discrete_palette(current_palette, levels)
+    # Check if a specific color mapping is provided for this column
+    if (!is.null(annotation_colors) &&
+        col %in% names(annotation_colors)) {
+      # Use the user-provided color palette
+      message(paste0("Using provided colors for annotation column: ", col))
+      annot_colours[[col]] <- annotation_colors[[col]]
+      
+    } else {
+      # Cycle through palettes
+      palette_idx <- ((i - 1) %% length(default_palettes)) + 1
+      current_palette <- default_palettes[palette_idx]
+      
+      # Get unique values for this column
+      levels <- gtools::mixedsort(unique(dfanno[[col]]))
+      # Create palette for this annotation
+      annot_colours[[col]] <- make_discrete_palette(current_palette, levels)
+    }
   }
   
   # Create the annotation object
@@ -644,7 +636,8 @@ make_left_annot <- function(copynumber,
         show_legend = show_legend
       )
     } else if (show_library_label == TRUE &
-               show_clone_label == TRUE & show_clone_text == FALSE) {
+               show_clone_label == TRUE &
+               show_clone_text == FALSE) {
       left_annot <- ComplexHeatmap::HeatmapAnnotation(
         Cluster = clones$clone_label,
         Sample = library_labels,
@@ -679,7 +672,8 @@ make_left_annot <- function(copynumber,
         show_legend = show_legend
       )
     } else if (show_library_label == FALSE &
-               show_clone_label == TRUE & show_clone_text == FALSE) {
+               show_clone_label == TRUE &
+               show_clone_text == FALSE) {
       left_annot <- ComplexHeatmap::HeatmapAnnotation(
         Cluster = clones$clone_label,
         col = annot_colours,
@@ -1057,6 +1051,7 @@ make_copynumber_heatmap <- function(copynumber,
                                     linkheight = 5,
                                     str_to_remove = NULL,
                                     anno_width = 0.4,
+                                    annotation_colors = NULL,
                                     rasterquality = 15,
                                     labels_rot = 45,
                                     extend_val = 0.05,
@@ -1090,7 +1085,8 @@ make_copynumber_heatmap <- function(copynumber,
       annotations,
       show_legend = show_legend,
       annofontsize = annofontsize,
-      anno_width = anno_width
+      anno_width = anno_width,
+      annotation_colors = annotation_colors
     )
   } else {
     left_annot <- make_left_annot(
@@ -1275,6 +1271,7 @@ plotHeatmap <- function(cn,
                         ladderize = TRUE,
                         labels_rot = 45,
                         extend_val = 0.05,
+                        chr13_17_deletion = FALSE,
                         ...) {
   if (is.hscn(cn) | is.ascn(cn)) {
     CNbins <- cn$data
@@ -1466,23 +1463,80 @@ plotHeatmap <- function(cn,
     }
   }
   
+  tree_ggplot <- NULL
+  
   if (plottree == TRUE) {
     if (normalize_tree == T) {
       tree <- format_tree(tree, branch_length)
     }
     
-    tree_ggplot <- make_tree_ggplot(tree,
-                                    as.data.frame(clusters),
-                                    clone_pal = clone_pal,
-                                    ladderize = ladderize)
-    tree_plot_dat <- tree_ggplot$data
-    
-    message("Creating tree...")
-    tree_hm <- make_corrupt_tree_heatmap(tree_ggplot, tree_width = tree_width)
-    ordered_cell_ids <- get_ordered_cell_ids(tree_plot_dat)
+    if (chr13_17_deletion) {
+      # --- NEW DELETION-COLORED TREE ---
+      message("Generating chr13/17 deletion data for tree...")
+      
+      # 1. Get the CNV data (it's called 'CNbins' in this function)
+      cnv_filtered <- CNbins %>%
+        filter(chr %in% c("17", "13")) %>%
+        mutate(binary = ifelse(state < 2, 1, 0)) %>%
+        dplyr::select(cell_id, chr, binary) %>%
+        group_by(cell_id, chr) %>%
+        summarise(binary = max(binary), .groups = "drop")
+      
+      # 2. Pivot to wide format
+      cnv_wide <- cnv_filtered %>%
+        tidyr::pivot_wider(
+          names_from = chr,
+          values_from = binary,
+          names_prefix = "chr",
+          values_fill = 0
+        )
+      
+      # 3. Join with tree tips
+      tip_data <- data.frame(label = tree$tip.label) %>%
+        left_join(cnv_wide, by = c("label" = "cell_id")) %>%
+        mutate(chr13 = ifelse(is.na(chr13), 0, chr13),
+               chr17 = ifelse(is.na(chr17), 0, chr17))
+      
+      # 4. Create the new tree_ggplot object
+      message("Creating new ggtree plot with colored tips...")
+      tree_ggplot <- ggtree::ggtree(tree, ladderize = ladderize) %<+% tip_data +
+        ggtree::geom_tippoint(
+          aes(
+            color = case_when(
+              chr17 == 1 & chr13 == 1 ~ "Both",
+              chr17 == 1 ~ "17q",
+              chr13 == 1 ~ "13q",
+              TRUE ~ "none"
+            )
+          ),
+          size = 10,
+          shape = 16,
+          # Large points
+          alpha = 0.8
+        ) +      # Slight transparency
+        scale_color_manual(
+          name = "Deletion",
+          values = deletion_color_palette
+        ) +
+        theme_tree2()
+      
+    } else {
+      tree_ggplot <- make_tree_ggplot(tree,
+                                      as.data.frame(clusters),
+                                      clone_pal = clone_pal,
+                                      ladderize = ladderize)
+    }
+    # Common tree processing (moved outside the if/else)
+    if (!is.null(tree_ggplot)) {
+      tree_plot_dat <- tree_ggplot$data
+      message("Creating tree heatmap...")
+      tree_hm <- make_corrupt_tree_heatmap(tree_ggplot, tree_width = tree_width)
+      ordered_cell_ids <- get_ordered_cell_ids(tree_plot_dat)
+    }
   }
   
-  if (!is.null(clusters)) {
+  if (!is.null(clusters) &&
+      !chr13_17_deletion && plottree == TRUE) {
     if (!"clone_id" %in% names(clusters)) {
       stop("No clone_id columns in clusters dataframe, you might need to rename your clusters")
     }
@@ -1569,6 +1623,7 @@ plotHeatmap <- function(cn,
     labeladjust = labeladjust,
     str_to_remove = str_to_remove,
     anno_width = anno_width,
+    annotation_colors = deletion_anno_color_palette,
     rasterquality = rasterquality,
     ...
   )

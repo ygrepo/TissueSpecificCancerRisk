@@ -1,0 +1,1155 @@
+---
+title: "17q13q: Clonality Analysis (SITKA TREE)"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: united
+    code_folding: show
+---
+# **Library**
+```{r message=FALSE, warning=FALSE}
+#install.packages("tidyverse")
+library(tidyverse)
+#install.packages("dplyr")
+library(dplyr)
+# install.packages("readr")
+library(readr)
+#install.packages("gt")
+library(gt)
+# install.packages("vroom")
+library(vroom)
+#install.packages("openxlsx")
+library(openxlsx)
+#install.packages("ape")
+library(ape)
+#install.packages("ggtree")
+library(ggtree)
+#install.packages("ggplot2")
+library(ggplot2)
+library(here)
+```
+# **Editing CNV Data for Sitka Binary Matrix**
+## *LUMI*
+### LUMI: Load CNV Data
+```{r}
+read_cnv_data <- function(filepath) {
+#!!!!!!!!!!!!!!!!!!!!!!!!! EDIT RAW FILES !!!!!!!!!!!!!!!!!!!!!!!!!
+  #read and process CNV data
+  cnv_data <- read.csv(filepath) %>%
+    mutate(
+      genotype = ifelse(grepl("B1-6548", sample), "B1/B2", sub("-.*", "", sample)), #rename samples
+      sample = gsub("-", ".", sample) #rename samples
+    ) %>%
+    dplyr::select(cell_id, chr, state, A, B, LOH, BAF, sample, genotype, start, end) #filter columns
+  
+  #read in sample info
+  cancer.history <- read.xlsx(here("data", "williams-samples.xlsx"))
+  cancer.history <- cancer.history %>% 
+    mutate(patient_id = gsub("-", ".", patient_id)) %>% #rename samples
+    dplyr::rename(
+                  sample = patient_id,  #correct direction: new = old
+                  cancer = current_past_cancer.in.contralateral.breast,
+                  tissue = Final.Path.Diagnosis) %>%
+    dplyr::select(sample, chemo, cancer, tissue)
+  
+  #edit sample info
+  cancer.history$chemo <- gsub("N/A", "no chemo", cancer.history$chemo) 
+  cancer.history$chemo <- gsub("N", "no chemo", cancer.history$chemo) 
+  cancer.history$chemo <- gsub("Y", "chemo", cancer.history$chemo) 
+  cancer.history$tissue <- gsub("R:", "", cancer.history$tissue) 
+  cancer.history$tissue <- gsub("R: ", "", cancer.history$tissue) 
+  cancer.history$tissue <- gsub("L: ", "", cancer.history$tissue)
+  cancer.history$tissue <- gsub(" UDH", "", cancer.history$tissue)
+  cancer.history$tissue <- gsub(" cysts", "", cancer.history$tissue)
+  cancer.history$tissue <- gsub(" non-proliferative", "", cancer.history$tissue)
+  cancer.history$tissue <- gsub(" ", "", cancer.history$tissue)
+
+
+  #add sample info to df
+  cnv_data <- cnv_data %>%
+    left_join(cancer.history, by = "sample")
+
+#!!!!!!!!!!!!!!!!!!!!!!!!! NAME SAMPLE DFS !!!!!!!!!!!!!!!!!!!!!!!!!
+  #generate name
+  if ("sample" %in% colnames(cnv_data)) {
+    sample_name <- unique(cnv_data$sample)[1]
+  } else {
+    sample_name <- tools::file_path_sans_ext(basename(filepath))
+  }
+
+  #assign df and gr to global environment
+  assign(paste0(sample_name, "_df"), cnv_data, envir = .GlobalEnv)
+
+  #return sample name
+  df = assign(paste0(sample_name, "_df"), cnv_data, envir = .GlobalEnv)
+}
+
+#arrange file paths
+files <- c(
+  #"/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B1HET43-hscn.csv",
+  #"/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B1HET49-hscn.csv",
+  #"/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B1HET6410-hscn.csv",
+  #"/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B1HET6537-hscn.csv",
+  #"/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B1HET6548-hscn.csv",
+  #"/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B1HET6550-hscn.csv",
+  here("data/allele_specific_cn", "B2HET16-hscn.csv"),
+  here("data/allele_specific_cn", "B2HET18-hscn.csv")
+  #"/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B2HET21-hscn.csv",
+  #"/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B2HET23-hscn.csv",
+  #"/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B2HET25-hscn.csv",
+  #"/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/B2HET6532-hscn.csv",
+  #"/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/WT6-hscn.csv",
+  #"/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/WT62-hscn.csv",
+  #"/Users/mahadbihie/brca-new/data_directory/allele_specific_cn/WT6752-hscn.csv"
+)
+
+#run pipeline
+lapply(files, read_cnv_data)
+```
+
+### LUMI: Generate Binary Matrix of Sitka
+```{r}
+#format luminal CNV data
+cnv.lumi <- B2.18_df %>%
+  mutate(
+    loci = paste(
+      chr,
+      format(start, scientific = FALSE, trim = TRUE),
+      format(end, scientific = FALSE, trim = TRUE),
+      sep = "_"
+    )
+  ) %>%
+  group_by(loci, cell_id) %>%
+  summarise(state = round(mean(state, na.rm = TRUE)), .groups = "drop") %>%
+  pivot_wider(names_from = cell_id, values_from = state) %>%
+  column_to_rownames(var="loci")
+
+#Remove any leading/trailing spaces
+rownames(cnv.lumi) <- trimws(rownames(cnv.lumi))
+
+#Ensure all values are numeric
+cnv.lumi[] <- lapply(cnv.lumi, as.numeric)
+
+#save matrix for Sitka Tree
+write.csv(x = cnv.lumi,
+          file = here("data/allele_specific_cn", "cnv_input_b2_18.csv"),
+          quote = FALSE,
+          row.names = TRUE)
+```
+
+## *TNBC*
+### TNBC: Load CNV Data
+```{r}
+#read in q arm cnv data
+cnv.tnbc <- read.csv(here("data", "tnbc.cnv.csv"))
+```
+### TNBC: Generate Binary Matrix of Sitka
+```{r}
+#format TNBC CNV data
+cnv.tnbc <- cnv.tnbc %>%
+  filter(Sample_Name == "SA501") %>%
+  mutate(
+    loci = paste(
+      chr,
+      format(start, scientific = FALSE, trim = TRUE),
+      format(end, scientific = FALSE, trim = TRUE),
+      sep = "_"
+    )
+  ) %>%
+  group_by(loci, cell_id) %>%
+  summarise(state = round(mean(state, na.rm = TRUE)), .groups = "drop") %>%
+  pivot_wider(names_from = cell_id, values_from = state) %>%
+  column_to_rownames(var="loci")
+
+#Remove any leading/trailing spaces
+rownames(cnv.tnbc) <- trimws(rownames(cnv.tnbc))
+
+#Ensure all values are numeric
+cnv.tnbc[] <- lapply(cnv.tnbc, as.numeric)
+
+#save matrix for Sitka Tree
+write.csv(x = cnv.tnbc,
+          file = "C:/Users/m-bih/sitkatree/example/data/cnv_input.csv",
+          quote = FALSE,
+          row.names = TRUE)
+```
+
+## *HGSC*
+### HGSC: Load CNV Data
+```{r}
+#read in q arm cnv data
+cnv.hgsc <- read.csv("C:/Users/m-bih/brca-luminal/data/hgsc.cnv.csv")
+```
+### HGSC: Generate Binary Matrix of Sitka
+```{r}
+#format HGSC CNV data
+cnv.hgsc <- cnv.hgsc %>%
+  filter(Sample_Name == "SA501") %>%
+  mutate(
+    loci = paste(
+      chr,
+      format(start, scientific = FALSE, trim = TRUE),
+      format(end, scientific = FALSE, trim = TRUE),
+      sep = "_"
+    )
+  ) %>%
+  group_by(loci, cell_id) %>%
+  summarise(state = round(mean(state, na.rm = TRUE)), .groups = "drop") %>%
+  pivot_wider(names_from = cell_id, values_from = state) %>%
+  column_to_rownames(var="loci")
+
+#Remove any leading/trailing spaces
+rownames(cnv.hgsc) <- trimws(rownames(cnv.hgsc))
+
+#Ensure all values are numeric
+cnv.hgsc[] <- lapply(cnv.hgsc, as.numeric)
+
+#save matrix for Sitka Tree
+write.csv(x = cnv.hgsc,
+          file = "C:/Users/m-bih/sitkatree/example/data/cnv_input_hgsc.csv",
+          quote = FALSE,
+          row.names = TRUE)
+```
+
+## *GENO*
+### GENO: Load CNV Data
+```{r}
+#read in q arm cnv data
+cnv.geno <- read.csv("C:/Users/m-bih/brca-luminal/data/genotype.data.cnv.csv")
+```
+
+### GENO: Generate Binary Matrix of Sitka
+```{r}
+#format GENO CNV data
+cnv.geno <- cnv.geno %>%
+  filter(Sample_Name == "SA501") %>%
+  mutate(
+    loci = paste(
+      chr,
+      format(start, scientific = FALSE, trim = TRUE),
+      format(end, scientific = FALSE, trim = TRUE),
+      sep = "_"
+    )
+  ) %>%
+  group_by(loci, cell_id) %>%
+  summarise(state = round(mean(state, na.rm = TRUE)), .groups = "drop") %>%
+  pivot_wider(names_from = cell_id, values_from = state) %>%
+  column_to_rownames(var="loci")
+
+#Remove any leading/trailing spaces
+rownames(cnv.geno) <- trimws(rownames(cnv.geno))
+
+#Ensure all values are numeric
+cnv.geno[] <- lapply(cnv.geno, as.numeric)
+
+#save matrix for Sitka Tree
+write.csv(x = cnv.geno,
+          file = "C:/Users/m-bih/sitkatree/example/data/cnv_input_geno.csv",
+          quote = FALSE,
+          row.names = TRUE)
+```
+# **SITKA Instructions (TERMINAL)**
+## *SITKA Code (Terminal)*
+```{r}
+#Step 0: process CNV data into binary file for SITKA 
+Rscript cntob.R -i data/cnv_input_hgsc.csv -o data/binary.csv
+
+#Step 1: Jitter Correction
+~/sitkatree/sitka/build/install/nowellpack/bin/corrupt-straighten \
+  --input ~/sitkatree/example/data/binary.csv \
+  --neighborhoodSize 2
+  
+#Step 2: Filter Loci
+~/sitkatree/sitka/build/install/nowellpack/bin/corrupt-filter --input results/all/2025-11-09-23-20-18-DnAz4OfN.exec/output.csv --lowerFraction 0.05
+
+#Step 3: Tree Inference
+JAVA_TOOL_OPTIONS="--add-opens=java.base/java.util=ALL-UNNAMED" \
+~/sitkatree/sitka/build/install/nowellpack/bin/corrupt-infer-with-noisy-params \
+    --model.globalParameterization true \
+    --model.binaryMatrix ~/sitkatree/example/results/all/2025-11-09-23-20-46-Z8YA836d.exec/filtered.csv \
+    --model.fprBound 0.1 \
+    --model.fnrBound 0.5 \
+    --engine PT \
+    --engine.initialization FORWARD \
+    --engine.nScans 10000 \
+    --engine.nPassesPerScan 1 \
+    --engine.nChains 10
+  
+#Step 4a:
+~/sitkatree/sitka/build/install/nowellpack/bin/corrupt-average --csvFile results/all/2025-11-09-23-21-24-ITSiH7gv.exec/samples/phylo.csv --logisticTransform false
+
+#Step 4b: move sample files to sample specific folder (use file path above)
+cp -r ~/sitkatree/example/results/all/2025-11-09-23-21-24-ITSiH7gv.exec/samples/ ~/17q13q/my-data/hgsc-sa1052-sitka/
+  
+#Step 5: 
+  ~/sitkatree/sitka/build/install/nowellpack/bin/corrupt-greedy --tipInclusionProbabilities ReadOnlyCLMatrix results/all/2025-11-10-14-03-20-kG4d6miO.exec/average.csv
+
+#Step 5b: move tree newick to sample specific folder (use new path to newick file)
+cp ~/sitkatree/example/results/all/2025-11-10-14-25-31-tvSUW8ZH.exec/tree.newick ~/17q13q/my-data/hgsc-sa1052-sitka/
+  
+cp ~/sitkatree/example/results/all/2025-11-10-14-25-31-tvSUW8ZH.exec/trees.csv ~/17q13q/my-data/hgsc-sa1052-sitka/
+
+```
+
+
+# **Data Visualization**
+## *B2.16:  APE Visualization*
+```{r}
+#read the Newick file
+# tree <- read.tree("C:/Users/m-bih/17q13q/my-data/b2.16-sitka/tree.newick")
+                                
+#q arm list
+q_arm_starts <- list(
+    chr17 = 25100002, #NCBI: https://www.ncbi.nlm.nih.gov/gdv/browser/genome/?id=GCF_000001405.40
+    chr13 = 17700002  #NCBI: https://www.ncbi.nlm.nih.gov/gdv/browser/genome/?id=GCF_000001405.40
+                    ) 
+
+#filter dataset to q arm
+B2.16_df <- subset(B2.16_df, 
+                       (chr == "17" & end > q_arm_starts$chr17 & start >= q_arm_starts$chr17) |
+                       (chr == "13" & end > q_arm_starts$chr13 & start >= q_arm_starts$chr13))
+```
+
+```{r}
+#convert deletions to 1, non-del to 0
+cnv_filtered_lumi <- B2.16_df %>%
+  mutate(del = ifelse(state < 2, 1, 0)) %>%
+  group_by(cell_id, chr) %>%
+  summarise(binary = mean(del) >= 0.50, .groups="drop") %>%
+  mutate(binary = as.numeric(binary))
+
+#Step 2: Pivot to wide format
+cnv_wide <- cnv_filtered_lumi %>%
+  pivot_wider(names_from = chr,
+              values_from = binary,
+              names_prefix = "chr")
+
+#add non-deletions
+all_cells <- unique(B2.16_df$cell_id)
+meta <- data.frame(cell_id = all_cells)
+
+#add meta
+cnv_wide <- meta %>%
+  left_join(cnv_wide, by="cell_id") 
+
+#remove NAs
+cnv_wide <- cnv_wide %>%
+  mutate(
+    chr13 = replace_na(chr13, 0),
+    chr17 = replace_na(chr17, 0)
+  )
+
+#save file
+write.csv(cnv_wide, file= here("data/allele_specific_cn/","lumi-gBRCA2-B2.16-chr17q13q-del-cells.csv"))
+```
+
+```{r}
+tree <- read.tree(here("data/allele_specific_cn","B216_tree.newick"))
+
+#remove cell label on tree
+tree$tip.label <- sub("^cell_", "", tree$tip.label)
+
+#combine cnv_wide and tip data
+tip_data <- data.frame(label = tree$tip.label) %>%
+  left_join(cnv_wide, by=c("label"="cell_id"))
+
+#plot tree
+tree.circle <- ggtree(tree) %<+% tip_data +
+  geom_tiplab(aes(color = case_when(
+    chr17 == 1 ~ "17q del",
+    chr13 == 1 ~ "13q del",
+    TRUE       ~ "no del"
+  )), size = 5) +
+  scale_color_manual(
+    name = "Chromosomal CNV",
+    values = c(
+                "17q del" = "#00A6FF",   
+                "13q del" = "#002F9C",   
+                "no del"  = "grey70"
+              ),
+    labels = c(
+      "17q del" = "17q deletion",
+      "13q del" = "13q deletion",
+      "no del"  = "No CNV"
+    )
+  ) +
+  #remove black line at bottom of plot
+  theme_tree2() + 
+  theme(
+    axis.line = element_blank(),
+    axis.line.x = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank()
+  ) + 
+  #remove labes 0, 50, 100, 150
+  theme(
+    axis.text = element_blank(),    
+    axis.ticks = element_blank(),   
+    axis.title = element_blank()    
+  ) +
+  ggtitle("Luminal Epthelial Sample: Phylogenetic Tree with chr17/13 deletions (Sample B2.16)") +
+  theme(
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    
+    #remove overlapping title
+    plot.margin = margin(t = 20, r = 10, b = 30, l = 10), 
+    
+    legend.title = element_text(size = 20, face = "bold"),
+    legend.text  = element_text(size = 18)
+  )
+
+#save tree
+ggsave(
+  filename = here("output/figures","B216_tree.png"),
+  plot = tree.circle,
+  width = 30,      
+  height = 17,     
+  dpi = 300
+)
+```
+
+```{r}
+#plot circular tree
+tree.circle <- ggtree(tree, layout="circular") %<+% tip_data +
+  geom_tiplab(aes(color = case_when(
+    chr17 == 1 ~ "17q del",
+    chr13 == 1 ~ "13q del",
+    TRUE       ~ "no del"
+  )), size = 3) +
+  scale_color_manual(
+    name = "Chromosomal CNV",
+    values = c(
+                "17q del" = "#00A6FF",   
+                "13q del" = "#002F9C",   #
+                "no del"  = "grey70"
+              ),
+    labels = c(
+      "17q del" = "17q deletion",
+      "13q del" = "13q deletion",
+      "no del"  = "No CNV"
+    )
+  ) +
+  #remove black line at bottom of plot
+  theme_tree2() + 
+  theme(
+    axis.line = element_blank(),
+    axis.line.x = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank()
+  ) + 
+  #remove labes 0, 50, 100, 150
+  theme(
+    axis.text = element_blank(),    
+    axis.ticks = element_blank(),   
+    axis.title = element_blank()    
+  ) +
+  ggtitle("Luminal Epthelial Sample: Phylogenetic Tree with chr17/13 deletions (Sample B2.16)") +
+  theme(
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    
+    #fix overlapping titles
+    plot.margin = margin(t = 20, r = 10, b = 30, l = 10), 
+    
+    legend.title = element_text(size = 20, face = "bold"),
+    legend.text  = element_text(size = 18)
+  )
+
+#save tree
+ggsave(
+  filename = here("output/figures","B216_circle_tree.png"),
+  plot = tree.circle,
+  width = 30,      
+  height = 17,     
+  dpi = 300
+)
+```
+
+## *B2.18:  APE Visualization*
+```{r}
+#read the Newick file
+tree <- read.tree("C:/Users/m-bih/17q13q/my-data/b2.18-sitka/tree.newick")
+                                
+#q arm list
+q_arm_starts <- list(
+    chr17 = 25100002, #NCBI: https://www.ncbi.nlm.nih.gov/gdv/browser/genome/?id=GCF_000001405.40
+    chr13 = 17700002  #NCBI: https://www.ncbi.nlm.nih.gov/gdv/browser/genome/?id=GCF_000001405.40
+                    ) 
+
+#filter dataset to q arm
+B2.18_df <- subset(B2.18_df, 
+                       (chr == "17" & end > q_arm_starts$chr17 & start >= q_arm_starts$chr17) |
+                       (chr == "13" & end > q_arm_starts$chr13 & start >= q_arm_starts$chr13))
+
+#convert deletions to 1, non-del to 0
+cnv_filtered_lumi <- B2.18_df %>%
+  mutate(del = ifelse(state < 2, 1, 0)) %>%
+  group_by(cell_id, chr) %>%
+  summarise(binary = mean(del) >= 0.25, .groups="drop") %>%
+  mutate(binary = as.numeric(binary))
+
+#Step 2: Pivot to wide format
+cnv_wide <- cnv_filtered_lumi %>%
+  pivot_wider(names_from = chr,
+              values_from = binary,
+              names_prefix = "chr")
+
+#add non-deletions
+all_cells <- unique(B2.18_df$cell_id)
+meta <- data.frame(cell_id = all_cells)
+
+#add meta
+cnv_wide <- meta %>%
+  left_join(cnv_wide, by="cell_id") 
+
+#remove NAs
+cnv_wide <- cnv_wide %>%
+  mutate(
+    chr13 = replace_na(chr13, 0),
+    chr17 = replace_na(chr17, 0)
+  )
+
+#save file
+write.csv(cnv_wide, file= "C:/Users/m-bih/17q13q/my-data/cells-deleted/lumi-gBRCA2-B2.18-chr17q13q-del-cells.csv")
+
+#remove cell label on tree
+tree$tip.label <- sub("^cell_", "", tree$tip.label)
+
+#combine cnv_wide and tip data
+tip_data <- data.frame(label = tree$tip.label) %>%
+  left_join(cnv_wide, by=c("label"="cell_id"))
+
+#plot tree
+tree.17.13.circle <- ggtree(tree) %<+% tip_data +
+  geom_tiplab(aes(color = case_when(
+    chr17 == 1 ~ "17q del",
+    chr13 == 1 ~ "13q del",
+    TRUE       ~ "no del"
+  )), size = 5) +
+  scale_color_manual(
+    name = "Chromosomal CNV",
+    values = c(
+                "17q del" = "#00A6FF",   
+                "13q del" = "#002F9C",   
+                "no del"  = "grey70"
+              ),
+    labels = c(
+      "17q del" = "17q deletion",
+      "13q del" = "13q deletion",
+      "no del"  = "No CNV"
+    )
+  ) +
+  #remove black line at bottom of plot
+  theme_tree2() + 
+  theme(
+    axis.line = element_blank(),
+    axis.line.x = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank()
+  ) + 
+  #remove labes 0, 50, 100, 150
+  theme(
+    axis.text = element_blank(),    
+    axis.ticks = element_blank(),   
+    axis.title = element_blank()    
+  ) +
+  ggtitle("Luminal Epthelial Sample: Phylogenetic Tree with chr17/13 deletions (Sample B2.18)") +
+  theme(
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    
+    #remove overlapping title
+    plot.margin = margin(t = 20, r = 10, b = 30, l = 10), 
+    
+    legend.title = element_text(size = 20, face = "bold"),
+    legend.text  = element_text(size = 18)
+  )
+
+#save tree
+ggsave(
+  filename = "C:/Users/m-bih/17q13q/plots/trees/LUMI-B2.18-gBRCA1-tree.png",
+  plot = tree.17.13.circle,
+  width = 30,      
+  height = 17,     
+  dpi = 300
+)
+
+#plot circular tree
+tree.17.13.circle <- ggtree(tree, layout="circular") %<+% tip_data +
+  geom_tiplab(aes(color = case_when(
+    chr17 == 1 ~ "17q del",
+    chr13 == 1 ~ "13q del",
+    TRUE       ~ "no del"
+  )), size = 3) +
+  scale_color_manual(
+    name = "Chromosomal CNV",
+    values = c(
+                "17q del" = "#00A6FF",   
+                "13q del" = "#002F9C",   #
+                "no del"  = "grey70"
+              ),
+    labels = c(
+      "17q del" = "17q deletion",
+      "13q del" = "13q deletion",
+      "no del"  = "No CNV"
+    )
+  ) +
+  #remove black line at bottom of plot
+  theme_tree2() + 
+  theme(
+    axis.line = element_blank(),
+    axis.line.x = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank()
+  ) + 
+  #remove labes 0, 50, 100, 150
+  theme(
+    axis.text = element_blank(),    
+    axis.ticks = element_blank(),   
+    axis.title = element_blank()    
+  ) +
+  ggtitle("Luminal Epthelial Sample: Phylogenetic Tree with chr17/13 deletions (Sample B2.18)") +
+  theme(
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    
+    #fix overlapping titles
+    plot.margin = margin(t = 20, r = 10, b = 30, l = 10), 
+    
+    legend.title = element_text(size = 20, face = "bold"),
+    legend.text  = element_text(size = 18)
+  )
+
+#save tree
+ggsave(
+  filename = "C:/Users/m-bih/17q13q/plots/trees/LUMI-B2.18-gBRCA1-tree-circle.png",
+  plot = tree.17.13.circle,
+  width = 30,      
+  height = 17,     
+  dpi = 300
+)
+```
+## *TNBC: APE Visualization*
+```{r}
+#read the Newick file
+tree <- read.tree("C:/Users/m-bih/17q13q/my-data/tnbc-sa501-sitka/SA501.tree.newick")
+
+#read in data frame
+tnbc.cnv <- vroom("C:/Users/m-bih/brca-luminal/data/tnbc.cnv.csv")
+
+#filter 
+sa501 <- tnbc.cnv %>% filter(Sample_Name == "SA501")
+                                
+#q arm list
+q_arm_starts <- list(
+    chr17 = 25100002, #NCBI: https://www.ncbi.nlm.nih.gov/gdv/browser/genome/?id=GCF_000001405.40
+    chr13 = 17700002  #NCBI: https://www.ncbi.nlm.nih.gov/gdv/browser/genome/?id=GCF_000001405.40
+                    ) 
+
+#filter dataset to q arm
+sa501 <- subset(sa501, 
+                       (chr == "17" & end > q_arm_starts$chr17 & start >= q_arm_starts$chr17) |
+                       (chr == "13" & end > q_arm_starts$chr13 & start >= q_arm_starts$chr13))
+
+#convert deletions to 1, non-del to 0
+cnv_filtered_tnbc <- sa501 %>%
+  mutate(del = ifelse(state < 2, 1, 0)) %>%
+  group_by(cell_id, chr) %>%
+  summarise(binary = mean(del) >= 0.5, .groups="drop") %>%
+  mutate(binary = as.numeric(binary))
+
+#Step 2: Pivot to wide format
+cnv_wide <- cnv_filtered_tnbc %>%
+  pivot_wider(names_from = chr,
+              values_from = binary,
+              names_prefix = "chr")
+
+#add non-deletions
+all_cells <- unique(tnbc.cnv$cell_id)
+meta <- data.frame(cell_id = all_cells)
+
+#add meta
+cnv_wide <- meta %>%
+  left_join(cnv_wide, by="cell_id") 
+
+#remove NAs
+cnv_wide <- cnv_wide %>%
+  mutate(
+    chr13 = replace_na(chr13, 0),
+    chr17 = replace_na(chr17, 0)
+  )
+
+#save file
+write.csv(cnv_wide, file= "C:/Users/m-bih/17q13q/my-data/cells-deleted/tnbc-gBRCA1-SA501-chr17q13q-del-cells.csv")
+
+#remove cell label on tree
+tree$tip.label <- sub("^cell_", "", tree$tip.label)
+
+#combine cnv_wide and tip data
+tip_data <- data.frame(label = tree$tip.label) %>%
+  left_join(cnv_wide, by=c("label"="cell_id"))
+
+#plot tree
+tree.17.13 <- ggtree(tree) %<+% tip_data +
+  geom_tiplab(aes(color = case_when(
+    chr17 == 1 ~ "17q del",
+    chr13 == 1 ~ "13q del",
+    TRUE       ~ "no del"
+  )), size=2) +
+  scale_color_manual(
+    name = "Chromosomal CNV",
+    values = c(
+                "17q del" = "#00A6FF",   
+                "13q del" = "#002F9C",   
+                "no del"  = "grey70"
+              ),
+    labels = c(
+      "17q del" = "17q deletion",
+      "13q del" = "13q deletion",
+      "no del"  = "No CNV"
+    )
+  ) +
+  theme_tree2() +
+  #remove black line at bottom of plot
+  theme(
+    axis.line = element_blank(),
+    axis.line.x = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank()
+  ) + 
+  #remove labes 0, 50, 100, 150
+  theme(
+    axis.text = element_blank(),    
+    axis.ticks = element_blank(),   
+    axis.title = element_blank()    
+  ) +
+  ggtitle("TNBC: Phylogenetic Tree with chr17/13 Deletions (Sample SA501)") +
+  theme(
+    plot.title = element_text(
+      size = 18,
+      face = "bold",
+      hjust = 0.5
+    ),
+    legend.title = element_text(size = 20, face = "bold"),
+    legend.text  = element_text(size = 18)
+  )
+
+#save tree
+ggsave(
+  filename = "C:/Users/m-bih/17q13q/plots/trees/TNBC-gBRCA1-tree.png",
+  plot = tree.17.13,
+  width = 29,
+  height = 17,
+  dpi = 300
+)
+
+#print tree
+tree.17.13
+
+#plot circular tree
+tree.17.13.circle <- ggtree(tree, layout="circular") %<+% tip_data +
+  geom_tiplab(aes(color = case_when(
+    chr17 == 1 ~ "17q del",
+    chr13 == 1 ~ "13q del",
+    TRUE       ~ "no del"
+  )), size=2) +
+  scale_color_manual(
+    name = "Chromosomal CNV",
+    values = c(
+                "17q del" = "#00A6FF",   
+                "13q del" = "#002F9C",   
+                "no del"  = "grey70"
+              ),
+    labels = c(
+      "17q del" = "17q deletion",
+      "13q del" = "13q deletion",
+      "no del"  = "No CNV"
+    )
+  ) +
+  theme_tree2() +
+  #remove black line at bottom of plot
+  theme(
+    axis.line = element_blank(),
+    axis.line.x = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank()
+  ) + 
+  #remove labes 0, 50, 100, 150
+  theme(
+    axis.text = element_blank(),    
+    axis.ticks = element_blank(),   
+    axis.title = element_blank()    
+  ) +
+  ggtitle("TNBC: Phylogenetic Tree with chr17/13 Deletions (Sample SA501)") +
+  theme(
+    plot.title = element_text(
+      size = 18,
+      face = "bold",
+      hjust = 0.5
+    ),
+    legend.title = element_text(size = 20, face = "bold"),  #bigger legend title
+    legend.text  = element_text(size = 18)                  #bigger legend text
+  )
+
+#save tree
+ggsave(
+  filename = "C:/Users/m-bih/17q13q/plots/trees/TNBC-gBRCA1-tree-circle.png",
+  plot = tree.17.13.circle,
+  width = 29,      
+  height = 17,     
+  dpi = 300
+)
+
+#print tree coded with 17q/13q deletions
+tree.17.13.circle
+```
+## *HGSC: APE Visualization*
+```{r}
+#read the Newick file
+tree <- read.tree("C:/Users/m-bih/17q13q/my-data/hgsc-sa1052-sitka/tree.newick")
+
+#read in data frame
+hgsc.cnv <- vroom("C:/Users/m-bih/brca-luminal/data/hgsc.cnv.csv")
+
+#filter 
+sa1052 <- hgsc.cnv %>% filter(Sample_Name == "SA1052")
+                                
+#q arm list
+q_arm_starts <- list(
+    chr17 = 25100002, #NCBI: https://www.ncbi.nlm.nih.gov/gdv/browser/genome/?id=GCF_000001405.40
+    chr13 = 17700002  #NCBI: https://www.ncbi.nlm.nih.gov/gdv/browser/genome/?id=GCF_000001405.40
+                    ) 
+
+#filter dataset to q arm
+sa1052 <- subset(sa1052, 
+                       (chr == "17" & end > q_arm_starts$chr17 & start >= q_arm_starts$chr17) |
+                       (chr == "13" & end > q_arm_starts$chr13 & start >= q_arm_starts$chr13))
+
+#convert deletions to 1, non-del to 0
+cnv_filtered_hgsc <- sa1052 %>%
+  mutate(del = ifelse(state < 2, 1, 0)) %>%
+  group_by(cell_id, chr) %>%
+  summarise(binary = mean(del) >= 0.5, .groups="drop") %>%
+  mutate(binary = as.numeric(binary))
+
+#Step 2: Pivot to wide format
+cnv_wide <- cnv_filtered_hgsc %>%
+  pivot_wider(names_from = chr,
+              values_from = binary,
+              names_prefix = "chr")
+
+#add non-deletions
+all_cells <- unique(hgsc.cnv$cell_id)
+meta <- data.frame(cell_id = all_cells)
+
+#add meta
+cnv_wide <- meta %>%
+  left_join(cnv_wide, by="cell_id") 
+
+#remove NAs
+cnv_wide <- cnv_wide %>%
+  mutate(
+    chr13 = replace_na(chr13, 0),
+    chr17 = replace_na(chr17, 0)
+  )
+
+#save file
+write.csv(cnv_wide, file= "C:/Users/m-bih/17q13q/my-data/cells-deleted/hgsc-gBRCA1-SA1052-chr17q13q-del-cells.csv")
+
+#remove cell label on tree
+tree$tip.label <- sub("^cell_", "", tree$tip.label)
+
+#combine cnv_wide and tip data
+tip_data <- data.frame(label = tree$tip.label) %>%
+  left_join(cnv_wide, by=c("label"="cell_id"))
+
+#plot tree
+tree.17.13 <- ggtree(tree) %<+% tip_data +
+  geom_tiplab(aes(color = case_when(
+    chr17 == 1 ~ "17q del",
+    chr13 == 1 ~ "13q del",
+    TRUE       ~ "no del"
+  )), size=2) +
+  scale_color_manual(
+    name = "Chromosomal CNV",
+    values = c(
+                "17q del" = "#00A6FF",   
+                "13q del" = "#002F9C",   
+                "no del"  = "grey70"
+              ),
+    labels = c(
+      "17q del" = "17q deletion",
+      "13q del" = "13q deletion",
+      "no del"  = "No CNV"
+    )
+  ) +
+  theme_tree2() +
+  #remove black line at bottom of plot
+  theme(
+    axis.line = element_blank(),
+    axis.line.x = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank()
+  ) + 
+  #remove labes 0, 50, 100, 150
+  theme(
+    axis.text = element_blank(),    
+    axis.ticks = element_blank(),   
+    axis.title = element_blank()    
+  ) +
+  ggtitle("HGSC: Phylogenetic Tree with chr17/13 Deletions (Sample SA1052)") +
+  theme(
+    plot.title = element_text(
+      size = 18,
+      face = "bold",
+      hjust = 0.5
+    ),
+    legend.title = element_text(size = 20, face = "bold"),
+    legend.text  = element_text(size = 18)
+  )
+
+#save tree
+ggsave(
+  filename = "C:/Users/m-bih/17q13q/plots/trees/HGSC-gBRCA1-tree.png",
+  plot = tree.17.13,
+  width = 29,
+  height = 17,
+  dpi = 300
+)
+
+#print tree
+tree.17.13
+
+#plot circular tree
+tree.17.13.circle <- ggtree(tree, layout="circular") %<+% tip_data +
+  geom_tiplab(aes(color = case_when(
+    chr17 == 1 ~ "17q del",
+    chr13 == 1 ~ "13q del",
+    TRUE       ~ "no del"
+  )), size=2) +
+  scale_color_manual(
+    name = "Chromosomal CNV",
+    values = c(
+                "17q del" = "#00A6FF",   
+                "13q del" = "#002F9C",   
+                "no del"  = "grey70"
+              ),
+    labels = c(
+      "17q del" = "17q deletion",
+      "13q del" = "13q deletion",
+      "no del"  = "No CNV"
+    )
+  ) +
+  theme_tree2() +
+  #remove black line at bottom of plot
+  theme(
+    axis.line = element_blank(),
+    axis.line.x = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank()
+  ) + 
+  #remove labes 0, 50, 100, 150
+  theme(
+    axis.text = element_blank(),    
+    axis.ticks = element_blank(),   
+    axis.title = element_blank()    
+  ) +
+  ggtitle("HGSC: Phylogenetic Tree with chr17/13 Deletions (Sample SA1052)") +
+  theme(
+    plot.title = element_text(
+      size = 18,
+      face = "bold",
+      hjust = 0.5
+    ),
+    legend.title = element_text(size = 20, face = "bold"),  #bigger legend title
+    legend.text  = element_text(size = 18)                  #bigger legend text
+  )
+
+#save tree
+ggsave(
+  filename = "C:/Users/m-bih/17q13q/plots/trees/HGSC-gBRCA1-tree-circle.png",
+  plot = tree.17.13.circle,
+  width = 29,      
+  height = 17,     
+  dpi = 300
+)
+
+#print tree coded with 17q/13q deletions
+tree.17.13.circle
+```
+
+
+
+
+## *GENO: APE Visualization*
+```{r}
+#read the Newick file
+tree <- read.tree("C:/Users/m-bih/17q13q/my-data/geno-sitka/tree.newick")
+
+#read in data frame
+geno.cnv <- vroom("C:/Users/m-bih/brca-luminal/data/genotype.data.cnv.csv")
+
+#filter 
+sa1188 <- geno.cnv %>% filter(Sample_Name == "SA1188")
+                                
+#q arm list
+q_arm_starts <- list(
+    chr17 = 25100002, #NCBI: https://www.ncbi.nlm.nih.gov/gdv/browser/genome/?id=GCF_000001405.40
+    chr13 = 17700002  #NCBI: https://www.ncbi.nlm.nih.gov/gdv/browser/genome/?id=GCF_000001405.40
+                    ) 
+
+#filter dataset to q arm
+sa1188 <- subset(sa1188, 
+                       (chr == "17" & end > q_arm_starts$chr17 & start >= q_arm_starts$chr17) |
+                       (chr == "13" & end > q_arm_starts$chr13 & start >= q_arm_starts$chr13))
+
+#convert deletions to 1, non-del to 0
+cnv_filtered_geno <- sa1188 %>%
+  mutate(del = ifelse(state < 2, 1, 0)) %>%
+  group_by(cell_id, chr) %>%
+  summarise(binary = mean(del) >= 0.25, .groups="drop") %>%
+  mutate(binary = as.numeric(binary))
+
+#Step 2: Pivot to wide format
+cnv_wide <- cnv_filtered_geno %>%
+  pivot_wider(names_from = chr,
+              values_from = binary,
+              names_prefix = "chr")
+
+#add non-deletions
+all_cells <- unique(geno.cnv$cell_id)
+meta <- data.frame(cell_id = all_cells)
+
+#add meta
+cnv_wide <- meta %>%
+  left_join(cnv_wide, by="cell_id") 
+
+#remove NAs
+cnv_wide <- cnv_wide %>%
+  mutate(
+    chr13 = replace_na(chr13, 0),
+    chr17 = replace_na(chr17, 0)
+  )
+
+#save file
+write.csv(cnv_wide, file= "C:/Users/m-bih/17q13q/my-data/cells-deleted/geno-gBRCA2-SA1188-chr17q13q-del-cells.csv")
+
+#remove cell label on tree
+tree$tip.label <- sub("^cell_", "", tree$tip.label)
+
+#combine cnv_wide and tip data
+tip_data <- data.frame(label = tree$tip.label) %>%
+  left_join(cnv_wide, by=c("label"="cell_id"))
+
+#plot tree
+tree.17.13 <- ggtree(tree) %<+% tip_data +
+  geom_tiplab(aes(color = case_when(
+    chr17 == 1 ~ "17q del",
+    chr13 == 1 ~ "13q del",
+    TRUE       ~ "no del"
+  )), size=2) +
+  scale_color_manual(
+    name = "Chromosomal CNV",
+    values = c(
+                "17q del" = "#00A6FF",   
+                "13q del" = "#002F9C",   
+                "no del"  = "grey70"
+              ),
+    labels = c(
+      "17q del" = "17q deletion",
+      "13q del" = "13q deletion",
+      "no del"  = "No CNV"
+    )
+  ) +
+  theme_tree2() +
+  #remove black line at bottom of plot
+  theme(
+    axis.line = element_blank(),
+    axis.line.x = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank()
+  ) + 
+  #remove labes 0, 50, 100, 150
+  theme(
+    axis.text = element_blank(),    
+    axis.ticks = element_blank(),   
+    axis.title = element_blank()    
+  ) +
+  ggtitle("GENO: Phylogenetic Tree with chr17/13 Deletions (Sample SA1188)") +
+  theme(
+    plot.title = element_text(
+      size = 18,
+      face = "bold",
+      hjust = 0.5
+    ),
+    legend.title = element_text(size = 20, face = "bold"),
+    legend.text  = element_text(size = 18)
+  )
+
+#save tree
+ggsave(
+  filename = "C:/Users/m-bih/17q13q/plots/trees/GENO-gBRCA2-tree.png",
+  plot = tree.17.13,
+  width = 29,
+  height = 17,
+  dpi = 300
+)
+
+#print tree
+tree.17.13
+
+#plot circular tree
+tree.17.13.circle <- ggtree(tree, layout="circular") %<+% tip_data +
+  geom_tiplab(aes(color = case_when(
+    chr17 == 1 ~ "17q del",
+    chr13 == 1 ~ "13q del",
+    TRUE       ~ "no del"
+  )), size=2) +
+  scale_color_manual(
+    name = "Chromosomal CNV",
+    values = c(
+                "17q del" = "#00A6FF",   
+                "13q del" = "#002F9C",   
+                "no del"  = "grey70"
+              ),
+    labels = c(
+      "17q del" = "17q deletion",
+      "13q del" = "13q deletion",
+      "no del"  = "No CNV"
+    )
+  ) +
+  theme_tree2() +
+  #remove black line at bottom of plot
+  theme(
+    axis.line = element_blank(),
+    axis.line.x = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank()
+  ) + 
+  #remove labes 0, 50, 100, 150
+  theme(
+    axis.text = element_blank(),    
+    axis.ticks = element_blank(),   
+    axis.title = element_blank()    
+  ) +
+  ggtitle("GENO: Phylogenetic Tree with chr17/13 Deletions (Sample SA1188)") +
+  theme(
+    plot.title = element_text(
+      size = 18,
+      face = "bold",
+      hjust = 0.5
+    ),
+    legend.title = element_text(size = 20, face = "bold"),  #bigger legend title
+    legend.text  = element_text(size = 18)                  #bigger legend text
+  )
+
+#save tree
+ggsave(
+  filename = "C:/Users/m-bih/17q13q/plots/trees/GENO-gBRCA2-tree-circle.png",
+  plot = tree.17.13.circle,
+  width = 29,      
+  height = 17,     
+  dpi = 300
+)
+
+#print tree coded with 17q/13q deletions
+tree.17.13.circle
+```

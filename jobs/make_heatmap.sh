@@ -30,12 +30,13 @@ echo "Starting heatmap generation..."
 # Run the heatmap script with command-line arguments
 Rscript src/make_heatmap.R \
     --treefile "trees/B216/tree.newick" \
-    --cnv_data "data/B2HET16-hscn.csv" \
-    --output "output/figures/B216_heatmap.pdf" \
-    --width 20 \
-    --height 12 \
-    --title "B216 Copy Number Heatmap" \
-    --tree_width 1 \
+    --cnv_data "data/allele_specific_cn/B2HET16-hscn.csv" \
+    --output "output/figures/B216_heatmap_chr13_17q_del.pdf" \
+    --chr13_17_deletion \
+    --width 10 \
+    --height 8 \
+    --title "B216 Clonal Evolution chr13/17q Deletions" \
+    --tree_width 2.5 \
     --linkheight 2
 
 echo "Heatmap generation completed."

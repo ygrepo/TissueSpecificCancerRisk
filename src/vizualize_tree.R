@@ -60,10 +60,14 @@ message("Creating tree...")
 tree_hm <- make_corrupt_tree_heatmap(tree_ggplot, tree_width = 1)
 
 message(paste("Saving tree to:", output_file))
+pdf_width_inches <- 1.5 
+pdf_height_inches <- 5 # Keep it tall to see the tips
+
+message(paste("Saving tree to:", output_file))
 pdf(
   output_file,
-  width = plot_width,
-  height = 40  # Keep the tall height
+  width = pdf_width_inches,
+  height = pdf_height_inches
 )
 
 # This is the 'save' command for ComplexHeatmap objects

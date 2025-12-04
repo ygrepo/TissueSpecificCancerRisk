@@ -1,3 +1,18 @@
+deletion_color_palette <- c(
+  "13q" = "blue",  # Green
+  "17q" = "red",  # Red
+  "Both" = "purple", # Blue
+  "None" = "gray70"  # Grey for cells with no deletion
+)
+deletion_anno_color_palette <- list(
+  Deletion = c(
+    "13q" = "blue",
+    "17q" = "red",
+    "Both" = "purple",
+    "None" = "gray70"
+  )
+)
+
 scCN_colors <- c(
   `CN0` = "#3182BD",
   `CN1` = "#9ECAE1",
