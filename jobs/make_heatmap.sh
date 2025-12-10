@@ -40,14 +40,14 @@ echo "Starting heatmap generation..."
 #     --linkheight 2
      
 Rscript src/make_heatmap.R \
-    --treefile "trees/B218/tree.newick" \
+    --treefile "trees/DG1134/tree.newick" \
     --cnv_data "data/B2HET18-hscn.csv" \
-    --output "output/figures/B218_heatmap_chr13_17q_del.pdf" \
+    --output "output/figures/DG1134_heatmap_chr13_17q_del.pdf" \
     --chr13_17_deletion \
     --plot_tree \
     --width 8 \
     --height 6 \
-    --title "B218 Clonal Evolution chr13/17q Deletions" \
+    --title "DG1134 Clonal Evolution chr13/17q Deletions" \
     --tree_width 2.5 \
     --linkheight 2
 

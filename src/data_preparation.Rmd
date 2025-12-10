@@ -50,6 +50,6 @@ write.csv(x = sa501,
 ```
 
 ```{r}
-cnv.hgsc <- read.csv(here("data", "data/hgsc.cnv.csv"))
+cnv.hgsc <- read.csv(here("data", "hgsc.cnv.csv"))
 
 ```
