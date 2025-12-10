@@ -35,22 +35,22 @@ library(here)
 #tree <- read.tree("C:/Users/m-bih/17q13q/my-data/tnbc-sa501-sitka/SA501.tree.newick")
 
 #read in data frame
-tnbc.cnv <- vroom("C:/Users/m-bih/brca-luminal/data/tnbc.cnv.csv")
+tnbc.cnv <- vroom(here("data","tnbc.cnv.csv"))
+```
 
-#filter 
+```{r}
+
+#filter
 sa501 <- tnbc.cnv %>% filter(Sample_Name == "SA501")
-                                
-#q arm list
-q_arm_starts <- list(
-    chr17 = 25100002, #NCBI: https://www.ncbi.nlm.nih.gov/gdv/browser/genome/?id=GCF_000001405.40
-    chr13 = 17700002  #NCBI: https://www.ncbi.nlm.nih.gov/gdv/browser/genome/?id=GCF_000001405.40
-                    ) 
 
-#filter dataset to q arm
-sa501 <- subset(sa501, 
-                       (chr == "17" & end > q_arm_starts$chr17 & start >= q_arm_starts$chr17) |
-                       (chr == "13" & end > q_arm_starts$chr13 & start >= q_arm_starts$chr13))
+write.csv(x = sa501,
+          file = here("data", "SA501.tbnc.cnv.csv"),
+          quote = FALSE,
+          row.names = TRUE)
 
+```
+
+```
 #convert deletions to 1, non-del to 0
 cnv_filtered_tnbc <- sa501 %>%
   mutate(del = ifelse(state < 2, 1, 0)) %>%

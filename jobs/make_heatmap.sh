@@ -40,16 +40,27 @@ echo "Starting heatmap generation..."
 #     --linkheight 2
      
 Rscript src/make_heatmap.R \
-    --treefile "trees/B216/tree.newick" \
-    --cnv_data "data/allele_specific_cn/B2HET16-hscn.csv" \
-    --output "output/figures/B216_heatmap_chr13_17q_del.pdf" \
+    --treefile "trees/SA501/tree.newick" \
+    --cnv_data "data/SA501.tbnc.cnv.csv" \
+    --output "output/figures/SA501_heatmap_chr13_17q_del.pdf" \
     --chr13_17_deletion \
     --plot_tree \
     --width 8 \
     --height 6 \
-    --title "B216 Clonal Evolution chr13/17q Deletions" \
+    --title "SA501 (TNBC) Clonal Evolution chr13/17q Deletions" \
     --tree_width 2.5 \
     --linkheight 2
 
+# Rscript src/make_heatmap.R \
+#     --treefile "trees/B216/tree.newick" \
+#     --cnv_data "data/allele_specific_cn/B2HET16-hscn.csv" \
+#     --output "output/figures/B216_heatmap_chr13_17q_del.pdf" \
+#     --chr13_17_deletion \
+#     --plot_tree \
+#     --width 8 \
+#     --height 6 \
+#     --title "B216 Clonal Evolution chr13/17q Deletions" \
+#     --tree_width 2.5 \
+#     --linkheight 2
 echo "Heatmap generation completed."
 echo "Job finished."
