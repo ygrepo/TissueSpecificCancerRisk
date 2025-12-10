@@ -41,7 +41,7 @@ echo "Starting heatmap generation..."
      
 Rscript src/make_heatmap.R \
     --treefile "trees/B218/tree.newick" \
-    --cnv_data "data/allele_specific_cn/B2HET18-hscn.csv" \
+    --cnv_data "data/B2HET18-hscn.csv" \
     --output "output/figures/B218_heatmap_chr13_17q_del.pdf" \
     --chr13_17_deletion \
     --plot_tree \
