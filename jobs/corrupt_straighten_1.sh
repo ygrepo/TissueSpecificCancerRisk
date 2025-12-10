@@ -27,7 +27,7 @@ export PATH=$SITKA_BIN_PATH:$PATH
 
 # Run the command
 #FN="${PROJECT_DIR}/data/SA1292_cnv_binary.csv"
-FN="${PROJECT_DIR}/data/cnv_input_b2_18_binary.csv"
+FN="${PROJECT_DIR}/data/q_hgsc_binary_DG1134.csv"
 corrupt-straighten --input $FN --neighborhoodSize 2
 cp results/latest/output.csv ./
 
