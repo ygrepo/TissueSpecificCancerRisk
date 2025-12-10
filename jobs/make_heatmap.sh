@@ -10,31 +10,43 @@
 #BSUB -e logs/heatmap.%J.err    # Standard error log file
 # --- End LSF Options ---
 
-echo "Running heatmap plotting on host $(hostname)..."
-
-set -e
-
-PROJECT_DIR="/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk"
-echo "Changing to working directory: ${PROJECT_DIR}"
-cd "${PROJECT_DIR}"
-
-# Load required modules
-module purge
-module load R/4.4.3
-
-# Create logs and output directories
-mkdir -p logs plots
+# echo "Running heatmap plotting on host $(hostname)..."
+# 
+# set -e
+# 
+# PROJECT_DIR="/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk"
+# echo "Changing to working directory: ${PROJECT_DIR}"
+# cd "${PROJECT_DIR}"
+# 
+# # Load required modules
+# module purge
+# module load R/4.4.3
+# 
+# # Create logs and output directories
+# mkdir -p logs plots
 
 echo "Starting heatmap generation..."
 
 # Run the heatmap script with command-line arguments
+# Rscript src/make_heatmap.R \
+#     --cnv_data "data/allele_specific_cn/B2HET16-hscn.csv" \
+#     --use_umap_clusters \
+#     --output "output/figures/B216_heatmap_chr13_17q_del_umap.pdf" \
+#     --plot_tree \
+#     --width 8 \
+#     --height 6 \
+#     --title "B216 Clonal Evolution chr13/17q Deletions" \
+#     --tree_width 2.5 \
+#     --linkheight 2
+     
 Rscript src/make_heatmap.R \
     --treefile "trees/B216/tree.newick" \
     --cnv_data "data/allele_specific_cn/B2HET16-hscn.csv" \
     --output "output/figures/B216_heatmap_chr13_17q_del.pdf" \
     --chr13_17_deletion \
-    --width 10 \
-    --height 8 \
+    --plot_tree \
+    --width 8 \
+    --height 6 \
     --title "B216 Clonal Evolution chr13/17q Deletions" \
     --tree_width 2.5 \
     --linkheight 2

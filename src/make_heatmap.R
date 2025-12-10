@@ -33,111 +33,112 @@ source(here("src/col_palettes.R"))
 #' @return List containing heatmap object and tree object
 make_heatmap_tree <- function(treefile, 
                               clusters = NULL, 
+                              use_umap_clusters = FALSE,
                               cnv_data = NULL,
                               output_file = NULL,
                               plot_width = 89 * 0.039,
                               plot_height = 2,
                               chroms = c(paste0(1:11), "13", "15", "17", "20", "X"),
                               title = "",
+                              plot_tree = TRUE,
                               tree_width = 1,
                               linkheight = 2,
-                              chr13_17_deletion = F,
+                              chr13_17_deletion = FALSE,
+                              chr13_17_deletion_threshold = 0.5,
                               clone_colors = c("A" = "firebrick4", "B" = "deepskyblue4")) {
   
-  # Validate inputs
-  if (!file.exists(treefile)) {
-    stop("Tree file does not exist: ", treefile)
+  # ---- Basic input sanity checks ----
+  if (is.null(cnv_data)) {
+    stop("cnv_data must be provided.")
   }
-  
-  # Check if cnv_data is required
-  if (is.null(clusters) && is.null(cnv_data)) {
-    stop("Either clusters or cnv_data must be provided")
-  }
-  
-  # Read the tree
-  cat("Reading tree from:", treefile, "\n")
-  mytree <- ape::read.tree(file = treefile)
-  cat("Tree has", length(mytree$tip.label), "tips\n")
-  
-  # Remove "cell_" prefix from tree tip labels if present
-  if (any(grepl("^cell_", mytree$tip.label))) {
-    cat("Removing 'cell_' prefix from tree tip labels\n")
-    mytree$tip.label <- gsub("^cell_", "", mytree$tip.label)
-    cat("Updated tree tip labels (first 3):", paste(head(mytree$tip.label, 3), collapse = ", "), "\n")
-  }
-  
-  # Handle clusters and CNV data logic
-  if (!is.null(clusters)) {
-    if (!"cell_id" %in% colnames(clusters)) {
-      stop("clusters data frame must contain 'cell_id' column")
-    }
-    cat("Filtering tree to", nrow(clusters), "cells from clusters\n")
-    mytree <- ape::keep.tip(mytree, clusters$cell_id)
-    
-    # If clusters is provided but cnv_data is not, try to use global dat$cn
-    if (is.null(cnv_data)) {
-      if (exists("dat") && "cn" %in% names(dat)) {
-        cnv_data <- dat$cn
-      } else {
-        stop("When clusters is provided without cnv_data, global dat$cn must exist")
-      }
-    }
-  }
-  
-  # Validate cnv_data
   if (!"cell_id" %in% colnames(cnv_data)) {
     stop("cnv_data must contain 'cell_id' column")
   }
   
-  cat("CNV data has", nrow(cnv_data), "rows and", length(unique(cnv_data$cell_id)), "unique cells\n")
-  
-  # Check overlap between tree and CNV data
-  overlap_cells <- intersect(mytree$tip.label, unique(cnv_data$cell_id))
-  cat("Found", length(overlap_cells), "overlapping cells between tree and CNV data\n")
-  
-  if (length(overlap_cells) == 0) {
-    cat("Tree tips (first 5):", paste(head(mytree$tip.label, 5), collapse = ", "), "\n")
-    cat("CNV cell_ids (first 5):", paste(head(unique(cnv_data$cell_id), 5), collapse = ", "), "\n")
-    stop("No overlapping cells found between tree and CNV data")
+  # ---- Tree vs. no-tree (UMAP) mode ----
+  if (use_umap_clusters) {
+    cat("Using UMAP+HDBSCAN clustering; no external treefile will be read.\n")
+    mytree <- NULL
+  } else {
+    if (is.null(treefile) || !file.exists(treefile)) {
+      stop("Tree file does not exist: ", treefile)
+    }
+    cat("Reading tree from:", treefile, "\n")
+    mytree <- ape::read.tree(file = treefile)
+    cat("Tree has", length(mytree$tip.label), "tips\n")
+    
+    # Remove "cell_" prefix from tree tip labels if present
+    if (any(grepl("^cell_", mytree$tip.label))) {
+      cat("Removing 'cell_' prefix from tree tip labels\n")
+      mytree$tip.label <- gsub("^cell_", "", mytree$tip.label)
+      cat("Updated tree tip labels (first 3):",
+          paste(head(mytree$tip.label, 3), collapse = ", "), "\n")
+    }
+    
+    # If clusters is given, restrict the tree
+    if (!is.null(clusters)) {
+      if (!"cell_id" %in% colnames(clusters)) {
+        stop("clusters data frame must contain 'cell_id' column")
+      }
+      cat("Filtering tree to", nrow(clusters), "cells from clusters\n")
+      mytree <- ape::keep.tip(mytree, clusters$cell_id)
+    }
   }
   
-  # Filter the CNV data to match the cells in the tree
-  cnaneuploid <- cnv_data %>% 
-    filter(cell_id %in% mytree$tip.label)
+  cat("CNV data has", nrow(cnv_data), "rows and",
+      length(unique(cnv_data$cell_id)), "unique cells\n")
   
-  cat("Filtered CNV data has", nrow(cnaneuploid), "rows for", length(unique(cnaneuploid$cell_id)), "cells\n")
+  # ---- Align CNV with tree, or use all cells in UMAP mode ----
+  if (!is.null(mytree)) {
+    overlap_cells <- intersect(mytree$tip.label, unique(cnv_data$cell_id))
+    cat("Found", length(overlap_cells),
+        "overlapping cells between tree and CNV data\n")
+    
+    if (length(overlap_cells) == 0) {
+      cat("Tree tips (first 5):",
+          paste(head(mytree$tip.label, 5), collapse = ", "), "\n")
+      cat("CNV cell_ids (first 5):",
+          paste(head(unique(cnv_data$cell_id), 5), collapse = ", "), "\n")
+      stop("No overlapping cells found between tree and CNV data")
+    }
+    
+    cnaneuploid <- cnv_data %>%
+      dplyr::filter(cell_id %in% mytree$tip.label)
+  } else {
+    # No tree: use all CNV cells
+    cnaneuploid <- cnv_data
+  }
   
+  cat("Filtered CNV data has", nrow(cnaneuploid), "rows for",
+      length(unique(cnaneuploid$cell_id)), "cells\n")
+  
+  # ---- chr13/17 deletion annotations (works with or without tree) ----
   annotations_df <- NULL
   if (chr13_17_deletion) {
     message("Generating chr13/17 deletion annotations...")
     
-    # -------------------------------------------------------------------
-    # 1. Build a wide tibble (chr13 / chr17) from cnaneuploid
-    #    This mirrors your code:
-    #    - del = 1 if state < 2
-    #    - binary deletion per (cell_id, chr) if mean(del) >= 0.5
-    #    - pivot_wider to columns chr13 / chr17
-    #    - fill missing cells with 0
-    # -------------------------------------------------------------------
     cnv_filtered_lumi <- cnaneuploid %>%
       mutate(del = ifelse(state < 2, 1, 0)) %>%
       group_by(cell_id, chr) %>%
-      summarise(binary = mean(del) >= 0.50, .groups = "drop") %>%
+      summarise(binary = mean(del) >= chr13_17_deletion_threshold,
+                .groups = "drop") %>%
       mutate(binary = as.numeric(binary))
     
-    message("Found ", nrow(cnv_filtered_lumi), " cell-chromosome combinations")
-    message("Deletions found: ", sum(cnv_deletions$binary))
-    
     cnv_wide <- cnv_filtered_lumi %>%
-      filter(chr %in% c("13", "17")) %>%
+      dplyr::filter(chr %in% c("13", "17")) %>%
       tidyr::pivot_wider(
         names_from  = chr,
         values_from = binary,
         names_prefix = "chr"
       )
-
-    # Ensure we have all tree tips, and convert NAs -> 0 (no deletion)
-    all_cells <- data.frame(cell_id = mytree$tip.label)
+    
+    # Base set of cells for annotations: tree tips if tree exists, else CNV cells
+    if (!is.null(mytree)) {
+      all_cells <- data.frame(cell_id = mytree$tip.label)
+    } else {
+      all_cells <- data.frame(cell_id = unique(cnaneuploid$cell_id))
+    }
+    
     cnv_wide <- all_cells %>%
       left_join(cnv_wide, by = "cell_id") %>%
       mutate(
@@ -145,9 +146,6 @@ make_heatmap_tree <- function(treefile,
         chr17 = tidyr::replace_na(chr17, 0)
       )
     
-    # -------------------------------------------------------------------
-    # 2. Collapse to categorical Deletion label
-    # -------------------------------------------------------------------
     cnv_wide_deletions <- cnv_wide %>%
       mutate(
         Deletion = dplyr::case_when(
@@ -165,67 +163,28 @@ make_heatmap_tree <- function(treefile,
       paste(names(deletion_summary), "=", deletion_summary, collapse = ", ")
     )
     
-    # # 1. Use the filtered 'cnaneuploid' data to find deletions
-    # cnv_deletions <- cnaneuploid %>%
-    #   filter(chr %in% c("17", "13")) %>%
-    #   mutate(binary = ifelse(state < 2, 1, 0)) %>%
-    #   dplyr::select(cell_id, chr, binary) %>%
-    #   group_by(cell_id, chr) %>%
-    #   summarise(binary = max(binary), .groups = "drop")
-    # 
-    # message("Found ", nrow(cnv_deletions), " cell-chromosome combinations")
-    # message("Deletions found: ", sum(cnv_deletions$binary))
-    # 
-    
-    # # 2. Pivot to wide format
-    # cnv_wide_deletions <- cnv_deletions %>%
-    #   tidyr::pivot_wider( # Corrected: Added tidyr:: prefix for safety
-    #     names_from = chr,
-    #     values_from = binary,
-    #     names_prefix = "chr",
-    #     values_fill = 0
-    #   ) %>%
-    #   mutate(Deletion = case_when( # Using 'Deletion' as the column name
-    #     chr17 == 1 & chr13 == 1 ~ "Both",
-    #     chr17 == 1 ~ "17q",
-    #     chr13 == 1 ~ "13q",
-    #     TRUE ~ "None"
-    #   )) %>%
-    #   dplyr::select(cell_id, Deletion)
-    # 
-    # deletion_summary <- table(cnv_wide_deletions$Deletion)
-    # message("Deletion summary: ", paste(names(deletion_summary), "=", deletion_summary, collapse = ", "))
-    # 
-    # 3. Create the final annotations_df
-    all_cells <- data.frame(cell_id = mytree$tip.label)
-    
-    # --- START OF THE NEW LOGIC ---
+    # Join clusters (if present) + deletions
     if (!is.null(clusters)) {
-      # Case 1: --clusters was provided. Join both.
       message("Joining clone clusters and deletion data...")
       annotations_df <- all_cells %>%
         left_join(as.data.frame(clusters), by = "cell_id") %>%
         left_join(as.data.frame(cnv_wide_deletions), by = "cell_id")
       
-      # Handle NAs for both
       annotations_df$clone_id[is.na(annotations_df$clone_id)] <- "None"
       annotations_df$Deletion[is.na(annotations_df$Deletion)] <- "None"
-      
     } else {
-      # Case 2: --clusters was NOT provided. Join deletions only.
       message("Joining deletion data only...")
       annotations_df <- all_cells %>%
         left_join(as.data.frame(cnv_wide_deletions), by = "cell_id")
-      
-      # Handle NAs for deletions only
       annotations_df$Deletion[is.na(annotations_df$Deletion)] <- "None"
     }
+    
     message("Final annotations_df has ", nrow(annotations_df), " rows")
-    message("Final deletion summary: ", paste(table(annotations_df$Deletion), collapse = ", "))
-  
+    message("Final deletion summary: ",
+            paste(table(annotations_df$Deletion), collapse = ", "))
   }
   
-  # Chromosome diagnostic
+  # ---- Chromosome diagnostics and auto-adjust ----
   cat("=== CHROMOSOME DIAGNOSTIC ===\n")
   actual_chroms <- sort(unique(cnaneuploid$chr))
   expected_chroms <- chroms
@@ -234,7 +193,7 @@ make_heatmap_tree <- function(treefile,
   cat("Expected chromosomes:", paste(expected_chroms, collapse = ", "), "\n")
   
   missing_in_data <- setdiff(expected_chroms, actual_chroms)
-  extra_in_data <- setdiff(actual_chroms, expected_chroms)
+  extra_in_data   <- setdiff(actual_chroms, expected_chroms)
   
   if (length(missing_in_data) > 0) {
     cat("Missing from data:", paste(missing_in_data, collapse = ", "), "\n")
@@ -243,7 +202,6 @@ make_heatmap_tree <- function(treefile,
     cat("Extra in data:", paste(extra_in_data, collapse = ", "), "\n")
   }
   
-  # Auto-adjust chroms to match data
   if (length(missing_in_data) > 0 || length(extra_in_data) > 0) {
     cat("🔧 Auto-adjusting chromosome list to match data\n")
     chroms <- actual_chroms
@@ -257,73 +215,319 @@ make_heatmap_tree <- function(treefile,
     stop("No CNV data remains after filtering to match tree cells")
   }
   
-  # Check if plotHeatmap function exists
   if (!exists("plotHeatmap")) {
-    stop("plotHeatmap function not found. Please ensure it's loaded in your environment.")
+    stop("plotHeatmap function not found. Please ensure it's loaded.")
   }
   
-  # --- Plotting ---
-    p <- plotHeatmap(
+  # ---- Plotting ----
+  p <- plotHeatmap(
     cnaneuploid,
-    tree = mytree %>% ape::ladderize(),
+    tree = if (use_umap_clusters) NULL else mytree %>% ape::ladderize(),
+    clusters = NULL,
     column_title = title,
     column_title_gp = gpar(fontsize = 10),
     linkheight = linkheight,
     chrlabels = chroms,
-    #show_heatmap_legend = FALSE,
     plotfrequency = FALSE,
     frequency_height = 0.5,
-    anno_width = 0.05,
-    annofontsize = 12,
+    anno_width = 0.6,
+    annofontsize = 8,
     labeladjust = -8,
     show_heatmap_legend = TRUE,
     show_legend = TRUE,
     show_clone_text = TRUE,
     show_library_label = FALSE,
     show_clone_label = TRUE,
-    plottree = TRUE,
+    plottree = if (use_umap_clusters) FALSE else plot_tree,
     reorderclusters = TRUE,
     tree_width = tree_width,
     clone_pal = clone_colors,
-    clusters = NULL,
-    annotations = annotations_df, 
-    chr13_17_deletion = chr13_17_deletion, 
-    labels_rot = 0,        # Rotate labels 45 degrees
-    extend_val = 0.15,       # More space for labels
+    annotations = annotations_df,
+    chr13_17_deletion = chr13_17_deletion,
+    labels_rot = 0,
+    extend_val = 0.15
   )
   
-  # Capture the plot as a grid object (without legend for return value)
   pout <- grid.grabExpr(draw(p), width = plot_width, height = plot_height)
   
-  # Save output with custom legend positioning
   if (!is.null(output_file)) {
     ext <- tools::file_ext(output_file)
-    
     if (ext %in% c("pdf", "PDF")) {
-      pdf(output_file, width = plot_width, height = plot_height)  # Extra height for bottom legend
-      
-      # Draw main heatmap
+      pdf(output_file, width = plot_width, height = plot_height)
       draw(p)
-      
       dev.off()
     } else if (ext %in% c("png", "PNG")) {
-      png(output_file, width = plot_width * 100, height = (plot_height + 1) * 100, res = 300)
-      
-      # Draw main heatmap
+      png(output_file, width = plot_width * 100,
+          height = (plot_height + 1) * 100, res = 300)
       draw(p)
-      
-      # Add legend at bottom left
-      pushViewport(viewport(x = 0.15, y = 0.05, width = 0.7, height = 0.1, just = c("left", "bottom")))
-      grid.draw(cn_legend)
-      popViewport()
-      
       dev.off()
     }
   }
   
   return(list(hm = pout, tree = mytree))
-  
 }
+
+# make_heatmap_tree <- function(treefile, 
+#                               clusters = NULL, 
+#                               use_umap_clusters = FALSE,
+#                               cnv_data = NULL,
+#                               output_file = NULL,
+#                               plot_width = 89 * 0.039,
+#                               plot_height = 2,
+#                               chroms = c(paste0(1:11), "13", "15", "17", "20", "X"),
+#                               title = "",
+#                               plot_tree = TRUE,
+#                               tree_width = 1,
+#                               linkheight = 2,
+#                               chr13_17_deletion = F,
+#                               chr13_17_deletion_threshold = 0.5,
+#                               clone_colors = c("A" = "firebrick4", "B" = "deepskyblue4")) {
+#   
+#   # Validate inputs
+#   # if (!file.exists(treefile)) {
+#   #   stop("Tree file does not exist: ", treefile)
+#   # }
+#   # 
+#   # Check if cnv_data is required
+#   if (is.null(clusters) && is.null(cnv_data)) {
+#     stop("Either clusters or cnv_data must be provided")
+#   }
+#   
+#   # Read the tree
+#   cat("Reading tree from:", treefile, "\n")
+#   mytree <- ape::read.tree(file = treefile)
+#   cat("Tree has", length(mytree$tip.label), "tips\n")
+#   
+#   # Remove "cell_" prefix from tree tip labels if present
+#   if (any(grepl("^cell_", mytree$tip.label))) {
+#     cat("Removing 'cell_' prefix from tree tip labels\n")
+#     mytree$tip.label <- gsub("^cell_", "", mytree$tip.label)
+#     cat("Updated tree tip labels (first 3):", paste(head(mytree$tip.label, 3), collapse = ", "), "\n")
+#   }
+#   
+#   # Handle clusters and CNV data logic
+#   if (!is.null(clusters)) {
+#     if (!"cell_id" %in% colnames(clusters)) {
+#       stop("clusters data frame must contain 'cell_id' column")
+#     }
+#     cat("Filtering tree to", nrow(clusters), "cells from clusters\n")
+#     mytree <- ape::keep.tip(mytree, clusters$cell_id)
+#     
+#     # If clusters is provided but cnv_data is not, try to use global dat$cn
+#     if (is.null(cnv_data)) {
+#       if (exists("dat") && "cn" %in% names(dat)) {
+#         cnv_data <- dat$cn
+#       } else {
+#         stop("When clusters is provided without cnv_data, global dat$cn must exist")
+#       }
+#     }
+#   }
+#   
+#   # Validate cnv_data
+#   if (!"cell_id" %in% colnames(cnv_data)) {
+#     stop("cnv_data must contain 'cell_id' column")
+#   }
+#   
+#   cat("CNV data has", nrow(cnv_data), "rows and", length(unique(cnv_data$cell_id)), "unique cells\n")
+#   
+#   # Check overlap between tree and CNV data
+#   overlap_cells <- intersect(mytree$tip.label, unique(cnv_data$cell_id))
+#   cat("Found", length(overlap_cells), "overlapping cells between tree and CNV data\n")
+#   
+#   if (length(overlap_cells) == 0) {
+#     cat("Tree tips (first 5):", paste(head(mytree$tip.label, 5), collapse = ", "), "\n")
+#     cat("CNV cell_ids (first 5):", paste(head(unique(cnv_data$cell_id), 5), collapse = ", "), "\n")
+#     stop("No overlapping cells found between tree and CNV data")
+#   }
+#   
+#   # Filter the CNV data to match the cells in the tree
+#   cnaneuploid <- cnv_data %>% 
+#     filter(cell_id %in% mytree$tip.label)
+#   
+#   cat("Filtered CNV data has", nrow(cnaneuploid), "rows for", length(unique(cnaneuploid$cell_id)), "cells\n")
+#   
+#   annotations_df <- NULL
+#   if (chr13_17_deletion) {
+#     message("Generating chr13/17 deletion annotations...")
+#     
+#     # -------------------------------------------------------------------
+#     # 1. Build a wide tibble (chr13 / chr17) from cnaneuploid
+#     #    - del = 1 if state < 2
+#     #    - binary deletion per (cell_id, chr) if mean(del) >= 0.5
+#     #    - pivot_wider to columns chr13 / chr17
+#     #    - fill missing cells with 0
+#     # -------------------------------------------------------------------
+#     cnv_filtered_lumi <- cnaneuploid %>%
+#       mutate(del = ifelse(state < 2, 1, 0)) %>%
+#       group_by(cell_id, chr) %>%
+#       summarise(binary = mean(del) >= chr13_17_deletion_threshold, .groups = "drop") %>%
+#       mutate(binary = as.numeric(binary))
+#     
+#     cnv_wide <- cnv_filtered_lumi %>%
+#       filter(chr %in% c("13", "17")) %>%
+#       tidyr::pivot_wider(
+#         names_from  = chr,
+#         values_from = binary,
+#         names_prefix = "chr"
+#       )
+# 
+#     # Ensure we have all tree tips, and convert NAs -> 0 (no deletion)
+#     all_cells <- data.frame(cell_id = mytree$tip.label)
+#     cnv_wide <- all_cells %>%
+#       left_join(cnv_wide, by = "cell_id") %>%
+#       mutate(
+#         chr13 = tidyr::replace_na(chr13, 0),
+#         chr17 = tidyr::replace_na(chr17, 0)
+#       )
+#     
+#     # -------------------------------------------------------------------
+#     # 2. Collapse to categorical Deletion label
+#     # -------------------------------------------------------------------
+#     cnv_wide_deletions <- cnv_wide %>%
+#       mutate(
+#         Deletion = dplyr::case_when(
+#           chr17 == 1 & chr13 == 1 ~ "Both",
+#           chr17 == 1             ~ "17q",
+#           chr13 == 1             ~ "13q",
+#           TRUE                   ~ "None"
+#         )
+#       ) %>%
+#       dplyr::select(cell_id, Deletion)
+#     
+#     deletion_summary <- table(cnv_wide_deletions$Deletion)
+#     message(
+#       "Deletion summary: ",
+#       paste(names(deletion_summary), "=", deletion_summary, collapse = ", ")
+#     )
+#   
+#     # 3. Create the final annotations_df
+#     all_cells <- data.frame(cell_id = mytree$tip.label)
+#     
+#     # --- START OF THE NEW LOGIC ---
+#     if (!is.null(clusters)) {
+#       # Case 1: --clusters was provided. Join both.
+#       message("Joining clone clusters and deletion data...")
+#       annotations_df <- all_cells %>%
+#         left_join(as.data.frame(clusters), by = "cell_id") %>%
+#         left_join(as.data.frame(cnv_wide_deletions), by = "cell_id")
+#       
+#       # Handle NAs for both
+#       annotations_df$clone_id[is.na(annotations_df$clone_id)] <- "None"
+#       annotations_df$Deletion[is.na(annotations_df$Deletion)] <- "None"
+#       
+#     } else {
+#       # Case 2: --clusters was NOT provided. Join deletions only.
+#       message("Joining deletion data only...")
+#       annotations_df <- all_cells %>%
+#         left_join(as.data.frame(cnv_wide_deletions), by = "cell_id")
+#       
+#       # Handle NAs for deletions only
+#       annotations_df$Deletion[is.na(annotations_df$Deletion)] <- "None"
+#     }
+#     message("Final annotations_df has ", nrow(annotations_df), " rows")
+#     message("Final deletion summary: ", paste(table(annotations_df$Deletion), collapse = ", "))
+#   
+#   }
+#   
+#   # Chromosome diagnostic
+#   cat("=== CHROMOSOME DIAGNOSTIC ===\n")
+#   actual_chroms <- sort(unique(cnaneuploid$chr))
+#   expected_chroms <- chroms
+#   
+#   cat("Chromosomes in data:", paste(actual_chroms, collapse = ", "), "\n")
+#   cat("Expected chromosomes:", paste(expected_chroms, collapse = ", "), "\n")
+#   
+#   missing_in_data <- setdiff(expected_chroms, actual_chroms)
+#   extra_in_data <- setdiff(actual_chroms, expected_chroms)
+#   
+#   if (length(missing_in_data) > 0) {
+#     cat("Missing from data:", paste(missing_in_data, collapse = ", "), "\n")
+#   }
+#   if (length(extra_in_data) > 0) {
+#     cat("Extra in data:", paste(extra_in_data, collapse = ", "), "\n")
+#   }
+#   
+#   # Auto-adjust chroms to match data
+#   if (length(missing_in_data) > 0 || length(extra_in_data) > 0) {
+#     cat("🔧 Auto-adjusting chromosome list to match data\n")
+#     chroms <- actual_chroms
+#     cat("Updated chroms:", paste(chroms, collapse = ", "), "\n")
+#   }
+#   cat("============================\n")
+#   
+#   cat("Chromosome column type:", class(cnaneuploid$chr), "\n")
+#   
+#   if (nrow(cnaneuploid) == 0) {
+#     stop("No CNV data remains after filtering to match tree cells")
+#   }
+#   
+#   # Check if plotHeatmap function exists
+#   if (!exists("plotHeatmap")) {
+#     stop("plotHeatmap function not found. Please ensure it's loaded in your environment.")
+#   }
+#   
+#   # --- Plotting ---
+#     p <- plotHeatmap(
+#     cnaneuploid,
+#     tree = if (use_umap_clusters) NULL else mytree %>% ape::ladderize(),
+#     clusters = NULL,
+#     column_title = title,
+#     column_title_gp = gpar(fontsize = 10),
+#     linkheight = linkheight,
+#     chrlabels = chroms,
+#     #show_heatmap_legend = FALSE,
+#     plotfrequency = FALSE,
+#     frequency_height = 0.5,
+#     anno_width = 0.6, # 0.05
+#     annofontsize = 12,
+#     labeladjust = -8,
+#     show_heatmap_legend = TRUE,
+#     show_legend = TRUE,
+#     show_clone_text = TRUE,
+#     show_library_label = FALSE,
+#     show_clone_label = TRUE,
+#     plottree = plot_tree,
+#     reorderclusters = TRUE,
+#     tree_width = tree_width,
+#     clone_pal = clone_colors,
+#     annotations = annotations_df, 
+#     chr13_17_deletion = chr13_17_deletion, 
+#     labels_rot = 0,        # Rotate labels 45 degrees
+#     extend_val = 0.15,       # More space for labels
+#   )
+#   
+#   # Capture the plot as a grid object (without legend for return value)
+#   pout <- grid.grabExpr(draw(p), width = plot_width, height = plot_height)
+#   
+#   # Save output with custom legend positioning
+#   if (!is.null(output_file)) {
+#     ext <- tools::file_ext(output_file)
+#     
+#     if (ext %in% c("pdf", "PDF")) {
+#       pdf(output_file, width = plot_width, height = plot_height)  # Extra height for bottom legend
+#       
+#       # Draw main heatmap
+#       draw(p)
+#       
+#       dev.off()
+#     } else if (ext %in% c("png", "PNG")) {
+#       png(output_file, width = plot_width * 100, height = (plot_height + 1) * 100, res = 300)
+#       
+#       # Draw main heatmap
+#       draw(p)
+#       
+#       # Add legend at bottom left
+#       pushViewport(viewport(x = 0.15, y = 0.05, width = 0.7, height = 0.1, just = c("left", "bottom")))
+#       grid.draw(cn_legend)
+#       popViewport()
+#       
+#       dev.off()
+#     }
+#   }
+#   
+#   return(list(hm = pout, tree = mytree))
+#   
+# }
 
 # Main function with argparse
 main <- function() {
@@ -345,7 +549,7 @@ main <- function() {
   parser <- ArgumentParser(description = "Generate a heatmap aligned with a phylogenetic tree")
   
   # Required arguments
-  parser$add_argument("-t", "--treefile", type = "character", required = TRUE,
+  parser$add_argument("-t", "--treefile", type = "character", 
                       help = "Path to the tree file (Newick format)")
   
   # Optional arguments
@@ -377,9 +581,19 @@ main <- function() {
                       default = NULL,
                       help = "Chromosome labels (space-separated). If not provided, will auto-detect from data")
   
+  parser$add_argument("--plot_tree", action = "store_true", default = TRUE,
+                      help = "Plot the tree alongside the heatmap")
+  
   parser$add_argument("--chr13_17_deletion", action = "store_true", default = FALSE,
                       help = "Include chr13/17 deletion annotations")
+ 
+  parser$add_argument("--chr13_17_deletion_threshold", type = "double", default = .5,
+                      help = "chr13/17 deletion threshold")
   
+  parser$add_argument("--use_umap_clusters", action = "store_true",
+                       help = "Ignore external tree and cluster cells by UMAP+HDBSCAN")
+   
+   
   # Parse arguments
   args <- parser$parse_args(argv)
   
@@ -401,10 +615,25 @@ main <- function() {
     cnv_data <- read.csv(args$cnv_data)
   }
   
-  # Validate that either clusters or cnv_data is provided
-  if (is.null(clusters) && is.null(cnv_data)) {
-    stop("Either --clusters or --cnv_data must be provided")
+  if (args$use_umap_clusters) {
+    # UMAP mode: require CNV, ignore treefile
+    if (is.null(cnv_data)) {
+      stop("When --use_umap_clusters is set, you must provide --cnv_data.")
+    }
+  } else {
+    # Tree mode: require treefile and CNV
+    if (is.null(args$treefile)) {
+      stop("You must provide --treefile when not using --use_umap_clusters.")
+    }
+    if (is.null(cnv_data)) {
+      stop("You must provide --cnv_data (copy-number bins) to plot the heatmap.")
+    }
   }
+  
+  # Validate that either clusters or cnv_data is provided
+  # if (is.null(clusters) && is.null(cnv_data)) {
+  #   stop("Either --clusters or --cnv_data must be provided")
+  # }
   
   # Auto-detect or use provided chromosomes
   if (is.null(args$chroms) && !is.null(cnv_data)) {
@@ -421,17 +650,21 @@ main <- function() {
   # Set up clone colors
   clone_colors <- c("A" = "firebrick4", "B" = "deepskyblue4")
   
+  
   # Call the function
   tryCatch({
     result <- make_heatmap_tree(
       treefile = args$treefile,
       clusters = clusters,
+      use_umap_clusters = args$use_umap_clusters,
       cnv_data = cnv_data,
       output_file = args$output,
       plot_width = args$width,
       plot_height = args$height,
       chroms = chroms_to_use, 
+      plot_tree = args$plot_tree,
       chr13_17_deletion = args$chr13_17_deletion,
+      chr13_17_deletion_threshold = args$chr13_17_deletion_threshold,
       title = args$title,
       tree_width = args$tree_width,
       linkheight = args$linkheight,

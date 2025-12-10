@@ -630,7 +630,7 @@ ggsave(
 ## *TNBC: APE Visualization*
 ```{r}
 #read the Newick file
-tree <- read.tree("C:/Users/m-bih/17q13q/my-data/tnbc-sa501-sitka/SA501.tree.newick")
+#tree <- read.tree("C:/Users/m-bih/17q13q/my-data/tnbc-sa501-sitka/SA501.tree.newick")
 
 #read in data frame
 tnbc.cnv <- vroom("C:/Users/m-bih/brca-luminal/data/tnbc.cnv.csv")
