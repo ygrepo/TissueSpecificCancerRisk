@@ -10,20 +10,20 @@
 #BSUB -e logs/heatmap.%J.err    # Standard error log file
 # --- End LSF Options ---
 
-# echo "Running heatmap plotting on host $(hostname)..."
-# 
-# set -e
-# 
-# PROJECT_DIR="/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk"
-# echo "Changing to working directory: ${PROJECT_DIR}"
-# cd "${PROJECT_DIR}"
+echo "Running heatmap plotting on host $(hostname)..."
+
+set -e
+
+PROJECT_DIR="/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk"
+echo "Changing to working directory: ${PROJECT_DIR}"
+cd "${PROJECT_DIR}"
 # 
 # # Load required modules
-# module purge
-# module load R/4.4.3
+module purge
+module load R/4.4.3
 # 
-# # Create logs and output directories
-# mkdir -p logs plots
+# Create logs and output directories
+mkdir -p logs output/figures
 
 echo "Starting heatmap generation..."
 
@@ -47,7 +47,7 @@ Rscript src/make_heatmap.R \
     --plot_tree \
     --width 8 \
     --height 6 \
-    --title "DG1134 Clonal Evolution chr13/17q Deletions" \
+    --title "B218 Clonal Evolution chr13/17q Deletions" \
     --tree_width 2.5 \
     --linkheight 2
 

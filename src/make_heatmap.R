@@ -101,10 +101,10 @@ make_heatmap_tree <- function(treefile,
           paste(head(unique(cnv_data$cell_id), 5), collapse = ", "), "\n")
       stop("No overlapping cells found between tree and CNV data")
     }
-    cat("Tip:", length(mytree$tip.label))               # tips in the tree
+    cat("Tip:", length(mytree$tip.label), "\n")               # tips in the tree
     cnaneuploid <- cnv_data %>%
       dplyr::filter(cell_id %in% mytree$tip.label)
-    cat("cnaneuploid:", length(unique(cnaneuploid$cell_id)))     # rows in the heatmap
+    cat("cnaneuploid:", length(unique(cnaneuploid$cell_id)), "\n")     # rows in the heatmap
   } else {
     # No tree: use all CNV cells
     cnaneuploid <- cnv_data
