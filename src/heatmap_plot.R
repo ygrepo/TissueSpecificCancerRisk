@@ -1511,15 +1511,16 @@ plotHeatmap <- function(cn,
             )
           ),
           size = 10,
+          # Adjust size as needed
           shape = 16,
-          # Large points
           alpha = 0.8
-        ) +      # Slight transparency
-        scale_color_manual(
-          name = "Deletion",
-          values = deletion_color_palette
         ) +
-        theme_tree2()
+        scale_color_manual(name = "Deletion", values = deletion_color_palette) +
+        theme_tree2() +
+        # --- ADD THESE LINES TO ENSURE ALIGNMENT ---
+        ggplot2::coord_cartesian(expand = FALSE) +
+        ggplot2::ylim(0.5, length(tree$tip.label) + 0.5)
+      # -------------------------------------------
       
     } else {
       tree_ggplot <- make_tree_ggplot(tree,
