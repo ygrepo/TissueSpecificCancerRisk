@@ -105,6 +105,8 @@ make_heatmap_tree <- function(treefile,
     cnaneuploid <- cnv_data %>%
       dplyr::filter(cell_id %in% mytree$tip.label)
     cat("cnaneuploid:", length(unique(cnaneuploid$cell_id)), "\n")     # rows in the heatmap
+    summary(mytree$edge.length)
+    
   } else {
     # No tree: use all CNV cells
     cnaneuploid <- cnv_data

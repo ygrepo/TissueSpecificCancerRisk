@@ -49,7 +49,7 @@ Rscript src/make_heatmap.R \
     --height 6 \
     --title "B218 Clonal Evolution chr13/17q Deletions" \
     --tree_width 2.5 \
-    --linkheight 2
+    --linkheight 1
 
 # Rscript src/make_heatmap.R \
 #     --treefile "trees/B216/tree.newick" \
