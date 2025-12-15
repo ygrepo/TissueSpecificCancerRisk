@@ -16,14 +16,14 @@ set -e
 
 PROJECT_DIR="/sc/arion/projects/DiseaseGeneCell/Huang_lab_project/TissueSpecificCancerRisk"
 echo "Changing to working directory: ${PROJECT_DIR}"
-cd "${PROJECT_DIR}"
+#cd "${PROJECT_DIR}"
 # 
 # # Load required modules
-module purge
-module load R/4.4.3
+# module purge
+# module load R/4.4.3
 # 
 # Create logs and output directories
-mkdir -p logs output/figures
+#mkdir -p logs output/figures
 
 echo "Starting heatmap generation..."
 
@@ -39,15 +39,15 @@ echo "Starting heatmap generation..."
 #     --tree_width 2.5 \
 #     --linkheight 2
 Rscript src/make_heatmap.R \
-    --treefile "trees/SA501/SA501.tree.newick" \
+    --treefile "trees/SA501/SA501.tree.2.newick" \
     --cnv_data "data/SA501.tbnc.cnv.csv" \
     --output "output/figures/SA501_heatmap_chr13_17q_del_2.pdf" \
     --chr13_17_deletion \
     --plot_tree \
     --width 8 \
     --height 6 \
-    --title "SA501 Clonal Evolution chr13/17q Deletions" \
-    --tree_width 2.5 \
+    --title "SA501 TBC Clonal Evolution chr13/17q Deletions" \
+    --tree_width 3 \
     --linkheight 1
 #     
 # Rscript src/make_heatmap.R \

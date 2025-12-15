@@ -247,7 +247,8 @@ make_tree_ggplot <- function(tree,
   
   p <- ggtree::ggtree(tree, tree_aes, linewidth = 0.25, ladderize = ladderize) +
     ggplot2::coord_cartesian(expand = FALSE) +
-    ggplot2::ylim(0.5, length(tree$tip.label) + 0.5) +
+    ggplot2::scale_y_continuous(limits = c(0.5, length(tree$tip.label) + 0.5), expand = c(0, 0)) +
+    #ggplot2::ylim(0.5, length(tree$tip.label) + 0.5) +
     ggplot2::theme_void()
   
   if (!is.null(clones)) {
@@ -370,46 +371,118 @@ format_clones <- function(clones, ordered_cell_ids) {
 }
 
 make_corrupt_tree_heatmap <- function(tree_ggplot, tree_width, ...) {
+  message("Plotting Tree *Gemini")  
+  # 1. EXTRACT RAW DATA FROM THE PLOT
+  # We build the plot object to get the actual line segments
+  plot_build <- ggplot2::ggplot_build(tree_ggplot)
+  
+  # ggtree usually puts the tree segments in the first layer (layer 1).
+  # We look for a layer containing line segments (x, y, xend, yend).
+  seg_data <- plot_build$data[[1]]
+  
+  # --- START SANITY CHECKS ---
+  message("--- DEBUGGING TREE DATA ---")
+  
+  # Check 1: Count segments vs expected edges
+  # In a tree, edges = Number of Nodes - 1 (usually)
+  n_segments <- nrow(seg_data)
+  n_nodes_in_plot <- nrow(tree_ggplot$data)
+  message(sprintf("Segments extracted: %d", n_segments))
+  message(sprintf("Total nodes in ggplot data: %d", n_nodes_in_plot))
+  
+  if (n_segments < (n_nodes_in_plot / 2)) {
+    warning("WARNING: Very few segments found. You might be grabbing the wrong layer.")
+  } else {
+    message("Check: Segment count looks reasonable.")
+  }
+  
+  # Check 2: Verify Coordinate Ranges
+  raw_yrange <- range(c(seg_data$y, seg_data$yend), na.rm = TRUE)
+  raw_xrange <- range(c(seg_data$x, seg_data$xend), na.rm = TRUE)
+  
+  message(sprintf("Y Range (Height): %.2f to %.2f", raw_yrange[1], raw_yrange[2]))
+  message(sprintf("X Range (Width): %.2f to %.2f", raw_xrange[1], raw_xrange[2]))
+  
+  if (diff(raw_yrange) == 0) warning("CRITICAL: Tree has 0 height!")
+  if (diff(raw_xrange) == 0) warning("CRITICAL: Tree has 0 width!")
+  
+  # Check 3: "Proof of Life" Plot
+  # This saves a raw plot of the lines to a file. 
+  # If this looks like a tree, your data is 100% fine, and the issue is ONLY the Heatmap viewport.
+  pdf("debug_tree_structure.pdf", width = 5, height = 10)
+  plot(c(0, 1), c(0, 1), type = "n", 
+       xlim = raw_xrange, ylim = raw_yrange, 
+       main = "Raw Segment Debug Plot", xlab = "X", ylab = "Y")
+  segments(x0 = seg_data$x, y0 = seg_data$y, 
+           x1 = seg_data$xend, y1 = seg_data$yend)
+  dev.off()
+  message("Saved 'debug_tree_structure.pdf'. Please check this file.")
+  # --- END SANITY CHECKS ---
+  
+  # Safety check: ensure we found segments
+  if (!all(c("x", "y", "xend", "yend") %in% colnames(seg_data))) {
+    # If layer 1 wasn't it, try to find the layer with segments
+    found_layer <- FALSE
+    for (i in seq_along(plot_build$data)) {
+      if (all(c("x", "y", "xend", "yend") %in% colnames(plot_build$data[[i]]))) {
+        seg_data <- plot_build$data[[i]]
+        found_layer <- TRUE
+        break
+      }
+    }
+    if (!found_layer) stop("Could not find tree segments in the ggplot object.")
+  }
+  
+  # 2. NORMALIZE COORDINATES TO 0-1
+  # This forces the tree to fill the viewport exactly, no matter the original scale.
+  min_x <- min(c(seg_data$x, seg_data$xend), na.rm = TRUE)
+  max_x <- max(c(seg_data$x, seg_data$xend), na.rm = TRUE)
+  min_y <- min(c(seg_data$y, seg_data$yend), na.rm = TRUE)
+  max_y <- max(c(seg_data$y, seg_data$yend), na.rm = TRUE)
+  
+  # Normalize function
+  norm_x <- function(v) (v - min_x) / (max_x - min_x)
+  norm_y <- function(v) (v - min_y) / (max_y - min_y)
+  
+  # 3. BUILD THE ANNOTATION
   tree_annot_func <- ComplexHeatmap::AnnotationFunction(
     fun = function(index) {
-      # --- Start of Fix ---
-      # Convert the ggplot object to a grob
-      g <- ggplot2::ggplotGrob(tree_ggplot)
+      grid::pushViewport(grid::viewport(clip = "off"))
       
-      # Find the layout name that corresponds to the main plot panel
-      # This is robust, unlike hard-coding an index like [[5]]
-      panel_index <- which(g$layout$name == "panel")
+      # Draw the tree lines using the normalized coordinates
+      grid::grid.segments(
+        x0 = norm_x(seg_data$x),
+        y0 = norm_y(seg_data$y),
+        x1 = norm_x(seg_data$xend),
+        y1 = norm_y(seg_data$yend),
+        default.units = "npc",
+        gp = grid::gpar(col = "black", lwd = 0.05) # Adjust line width/color here
+      )
       
-      # Basic error checking
-      if (length(panel_index) == 0) {
-        stop("Could not find 'panel' in ggplot grob layout.")
-      } else if (length(panel_index) > 1) {
-        # This shouldn't happen with ggtree, but just in case
-        panel_index <- panel_index[1]
-      }
-      
-      # Extract the correct grob
-      panel_grob <- g$grobs[[panel_index]]
-      
-      # Push the viewport and draw the correct panel
-      pushViewport(viewport(height = 1))
-      grid.draw(panel_grob)
-      popViewport()
-      # --- End of Fix ---
+      grid::popViewport()
     },
-    var_import = list(tree_ggplot = tree_ggplot),
+    var_import = list(seg_data = seg_data, norm_x = norm_x, norm_y = norm_y),
     width = grid::unit(tree_width, "cm"),
     which = "row"
   )
-  tree_annot <- ComplexHeatmap::HeatmapAnnotation(tree = tree_annot_func,
-                                                  which = "row",
-                                                  show_annotation_name = FALSE)
   
+  tree_annot <- ComplexHeatmap::HeatmapAnnotation(
+    tree = tree_annot_func,
+    which = "row",
+    show_annotation_name = FALSE
+  )
+  
+  # 4. GENERATE HEATMAP
+  # Ensure n_cells matches the tip count
   n_cells <- sum(tree_ggplot$data$isTip)
-  tree_hm <- ComplexHeatmap::Heatmap(matrix(ncol = 0, nrow = n_cells), left_annotation = tree_annot, ...)
   
-  return(tree_hm)
+  ComplexHeatmap::Heatmap(
+    matrix(ncol = 0, nrow = n_cells),
+    left_annotation = tree_annot,
+    ...
+  )
 }
+
 
 find_largest_contiguous_group <- function(x) {
   starts <- c(1, which(diff(x) != 1 & diff(x) != 0) + 1)
