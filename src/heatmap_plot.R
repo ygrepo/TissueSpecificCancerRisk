@@ -370,8 +370,8 @@ format_clones <- function(clones, ordered_cell_ids) {
   return(clonesdf)
 }
 
-make_corrupt_tree_heatmap <- function(tree_ggplot, tree_width, ...) {
-  message("Plotting Tree *Gemini")  
+make_tree_heatmap <- function(tree_ggplot, tree_width, ...) {
+  message("Plotting Tree and Heatmap")  
   # 1. EXTRACT RAW DATA FROM THE PLOT
   # We build the plot object to get the actual line segments
   plot_build <- ggplot2::ggplot_build(tree_ggplot)
@@ -409,7 +409,7 @@ make_corrupt_tree_heatmap <- function(tree_ggplot, tree_width, ...) {
   # Check 3: "Proof of Life" Plot
   # This saves a raw plot of the lines to a file. 
   # If this looks like a tree, your data is 100% fine, and the issue is ONLY the Heatmap viewport.
-  pdf("debug_tree_structure.pdf", width = 5, height = 10)
+  pdf("output/figures/debug_tree_structure.pdf", width = 5, height = 10)
   plot(c(0, 1), c(0, 1), type = "n", 
        xlim = raw_xrange, ylim = raw_yrange, 
        main = "Raw Segment Debug Plot", xlab = "X", ylab = "Y")
@@ -1509,7 +1509,7 @@ plotHeatmap <- function(cn,
     )
     tree_plot_dat <- tree_ggplot$data
     message("Creating tree...")
-    tree_hm <- make_corrupt_tree_heatmap(tree_ggplot, tree_width = tree_width)
+    tree_hm <- make_tree_heatmap(tree_ggplot, tree_width = tree_width)
     ordered_cell_ids <- get_ordered_cell_ids(tree_plot_dat)
     
     clusters <- clustering_results$clustering %>%
@@ -1545,10 +1545,9 @@ plotHeatmap <- function(cn,
     }
     
     if (chr13_17_deletion) {
-      # --- NEW DELETION-COLORED TREE ---
       message("Generating chr13/17 deletion data for tree...")
       
-      # 1. Get the CNV data (it's called 'CNbins' in this function)
+      # Get the CNV data (it's called 'CNbins' in this function)
       cnv_filtered <- CNbins %>%
         filter(chr %in% c("17", "13")) %>%
         mutate(binary = ifelse(state < 2, 1, 0)) %>%
@@ -1556,7 +1555,7 @@ plotHeatmap <- function(cn,
         group_by(cell_id, chr) %>%
         summarise(binary = max(binary), .groups = "drop")
       
-      # 2. Pivot to wide format
+      # Pivot to wide format
       cnv_wide <- cnv_filtered %>%
         tidyr::pivot_wider(
           names_from = chr,
@@ -1565,13 +1564,13 @@ plotHeatmap <- function(cn,
           values_fill = 0
         )
       
-      # 3. Join with tree tips
+      # Join with tree tips
       tip_data <- data.frame(label = tree$tip.label) %>%
         left_join(cnv_wide, by = c("label" = "cell_id")) %>%
         mutate(chr13 = ifelse(is.na(chr13), 0, chr13),
                chr17 = ifelse(is.na(chr17), 0, chr17))
       
-      # 4. Create the new tree_ggplot object
+      # Create the new tree_ggplot object
       message("Creating new ggtree plot with colored tips...")
       tree_ggplot <- ggtree::ggtree(tree, ladderize = ladderize) %<+% tip_data +
         ggtree::geom_tippoint(
@@ -1583,12 +1582,18 @@ plotHeatmap <- function(cn,
               TRUE ~ "none"
             )
           ),
-          size = 10,
+          size = 2,
           # Adjust size as needed
           shape = 16,
           alpha = 0.8
         ) +
-        scale_color_manual(name = "Deletion", values = deletion_color_palette) +
+        # Define palette for the tree tips
+        scale_color_manual(
+          name = "Deletion", 
+          values = c("Both" = "purple", "17q" = "firebrick", "13q" = "darkblue", "none" = "forestgreen")          
+          #values = c("Both" = "purple", "17q" = "firebrick", "13q" = "blueviolet", "none" = "grey90")
+        ) +        
+        #scale_color_manual(name = "Deletion", values = deletion_color_palette) +
         theme_tree2() +
         # --- ADD THESE LINES TO ENSURE ALIGNMENT ---
         ggplot2::coord_cartesian(expand = FALSE) +
@@ -1605,7 +1610,7 @@ plotHeatmap <- function(cn,
     if (!is.null(tree_ggplot)) {
       tree_plot_dat <- tree_ggplot$data
       message("Creating tree heatmap...")
-      tree_hm <- make_corrupt_tree_heatmap(tree_ggplot, tree_width = tree_width)
+      tree_hm <- make_tree_heatmap(tree_ggplot, tree_width = tree_width)
       ordered_cell_ids <- get_ordered_cell_ids(tree_plot_dat)
     }
   }
@@ -1628,7 +1633,7 @@ plotHeatmap <- function(cn,
       tree_plot_dat <- tree_ggplot$data
       
       message("Creating tree...")
-      tree_hm <- make_corrupt_tree_heatmap(tree_ggplot, tree_width = tree_width)
+      tree_hm <- make_tree_heatmap(tree_ggplot, tree_width = tree_width)
       ordered_cell_ids <- get_ordered_cell_ids(tree_plot_dat)
     }
     else if (reorderclusters == TRUE & is.null(tree)) {
@@ -1698,7 +1703,7 @@ plotHeatmap <- function(cn,
     labeladjust = labeladjust,
     str_to_remove = str_to_remove,
     anno_width = anno_width,
-    annotation_colors = deletion_anno_color_palette,
+    annotation_colors = deletion_anno_colors,
     rasterquality = rasterquality,
     ...
   )
@@ -1767,7 +1772,7 @@ plotSNVHeatmap <- function(SNVs,
   tree_plot_dat <- tree_ggplot$data
   
   message("Creating tree...")
-  tree_hm <- make_corrupt_tree_heatmap(tree_ggplot, tree_width = tree_width)
+  tree_hm <- make_tree_heatmap(tree_ggplot, tree_width = tree_width)
   ordered_cell_ids <- get_ordered_cell_ids(tree_plot_dat)
   
   muts <- muts[ordered_cell_ids, ]
@@ -1887,7 +1892,7 @@ plotHeatmapQC <- function(cn,
     )
     tree_plot_dat <- tree_ggplot$data
     message("Creating tree...")
-    tree_hm <- make_corrupt_tree_heatmap(tree_ggplot, tree_width = tree_width)
+    tree_hm <- make_tree_heatmap(tree_ggplot, tree_width = tree_width)
     ordered_cell_ids <- get_ordered_cell_ids(tree_plot_dat)
     
     clusters <- clustering_results$clustering %>%
@@ -1917,7 +1922,7 @@ plotHeatmapQC <- function(cn,
     tree_plot_dat <- tree_ggplot$data
     
     message("Creating tree...")
-    tree_hm <- make_corrupt_tree_heatmap(tree_ggplot, tree_width = tree_width)
+    tree_hm <- make_tree_heatmap(tree_ggplot, tree_width = tree_width)
     ordered_cell_ids <- get_ordered_cell_ids(tree_plot_dat)
   }
   

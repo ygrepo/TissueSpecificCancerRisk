@@ -116,6 +116,7 @@ make_heatmap_tree <- function(treefile,
       length(unique(cnaneuploid$cell_id)), "cells\n")
   
   # ---- chr13/17 deletion annotations (works with or without tree) ----
+  # ---- chr13/17 deletion annotations (works with or without tree) ----
   annotations_df <- NULL
   if (chr13_17_deletion) {
     message("Generating chr13/17 deletion annotations...")
@@ -135,7 +136,7 @@ make_heatmap_tree <- function(treefile,
         names_prefix = "chr"
       )
     
-    # Base set of cells for annotations: tree tips if tree exists, else CNV cells
+    # Base set of cells
     if (!is.null(mytree)) {
       all_cells <- data.frame(cell_id = mytree$tip.label)
     } else {
@@ -149,22 +150,15 @@ make_heatmap_tree <- function(treefile,
         chr17 = tidyr::replace_na(chr17, 0)
       )
     
+    # --- UPDATED: CREATE TWO SEPARATE COLUMNS ---
+    # We create the split columns immediately
     cnv_wide_deletions <- cnv_wide %>%
       mutate(
-        Deletion = dplyr::case_when(
-          chr17 == 1 & chr13 == 1 ~ "Both",
-          chr17 == 1             ~ "17q",
-          chr13 == 1             ~ "13q",
-          TRUE                   ~ "None"
-        )
+        `13q Del` = ifelse(chr13 == 1, "Yes", "No"),
+        `17q Del` = ifelse(chr17 == 1, "Yes", "No")
       ) %>%
-      dplyr::select(cell_id, Deletion)
-    
-    deletion_summary <- table(cnv_wide_deletions$Deletion)
-    message(
-      "Deletion summary: ",
-      paste(names(deletion_summary), "=", deletion_summary, collapse = ", ")
-    )
+      dplyr::select(cell_id, `13q Del`, `17q Del`) 
+    # --------------------------------------------
     
     # Join clusters (if present) + deletions
     if (!is.null(clusters)) {
@@ -174,17 +168,25 @@ make_heatmap_tree <- function(treefile,
         left_join(as.data.frame(cnv_wide_deletions), by = "cell_id")
       
       annotations_df$clone_id[is.na(annotations_df$clone_id)] <- "None"
-      annotations_df$Deletion[is.na(annotations_df$Deletion)] <- "None"
+      
+      # FIX: Fill NAs for the NEW columns, not the old 'Deletion' column
+      annotations_df$`13q Del`[is.na(annotations_df$`13q Del`)] <- "No"
+      annotations_df$`17q Del`[is.na(annotations_df$`17q Del`)] <- "No"
+      
     } else {
       message("Joining deletion data only...")
       annotations_df <- all_cells %>%
         left_join(as.data.frame(cnv_wide_deletions), by = "cell_id")
-      annotations_df$Deletion[is.na(annotations_df$Deletion)] <- "None"
+      
+      # FIX: Fill NAs for the NEW columns
+      annotations_df$`13q Del`[is.na(annotations_df$`13q Del`)] <- "No"
+      annotations_df$`17q Del`[is.na(annotations_df$`17q Del`)] <- "No"
     }
     
     message("Final annotations_df has ", nrow(annotations_df), " rows")
-    message("Final deletion summary: ",
-            paste(table(annotations_df$Deletion), collapse = ", "))
+    # FIX: Updated summary to show counts for both new columns
+    message("Summary 13q: ", paste(table(annotations_df$`13q Del`), collapse=", "))
+    message("Summary 17q: ", paste(table(annotations_df$`17q Del`), collapse=", "))
   }
   
   # ---- Chromosome diagnostics and auto-adjust ----
@@ -250,22 +252,25 @@ make_heatmap_tree <- function(treefile,
     labels_rot = 0,
     extend_val = 0.15
   )
-  
-  pout <- grid.grabExpr(draw(p), width = plot_width, height = plot_height)
-  
   if (!is.null(output_file)) {
     ext <- tools::file_ext(output_file)
     if (ext %in% c("pdf", "PDF")) {
       pdf(output_file, width = plot_width, height = plot_height)
-      draw(p)
+      ComplexHeatmap::draw(p, merge_legend = TRUE, heatmap_legend_side = "right", annotation_legend_side = "right")
       dev.off()
     } else if (ext %in% c("png", "PNG")) {
-      png(output_file, width = plot_width * 100,
-          height = (plot_height + 1) * 100, res = 300)
-      draw(p)
+      png(output_file, width = plot_width * 100, height = (plot_height + 1) * 100, res = 300)
+      ComplexHeatmap::draw(p, merge_legend = TRUE, heatmap_legend_side = "right", annotation_legend_side = "right")
       dev.off()
     }
   }
+  
+  # Return the grabExpr version for interactive display if needed
+  pout <- grid.grabExpr(
+    ComplexHeatmap::draw(p, merge_legend = TRUE, heatmap_legend_side = "right", annotation_legend_side = "right"), 
+    width = plot_width, 
+    height = plot_height
+  )
   
   return(list(hm = pout, tree = mytree))
 }
@@ -370,11 +375,7 @@ main <- function() {
       stop("You must provide --cnv_data (copy-number bins) to plot the heatmap.")
     }
   }
-  
-  # Validate that either clusters or cnv_data is provided
-  # if (is.null(clusters) && is.null(cnv_data)) {
-  #   stop("Either --clusters or --cnv_data must be provided")
-  # }
+
   
   # Auto-detect or use provided chromosomes
   if (is.null(args$chroms) && !is.null(cnv_data)) {

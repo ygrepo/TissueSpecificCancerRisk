@@ -1,16 +1,22 @@
 deletion_color_palette <- c(
-  "13q" = "blue",  # Green
-  "17q" = "red",  # Red
-  "Both" = "purple", # Blue
+  "13q" = "blue",
+  # Green
+  "17q" = "red",
+  # Red
+  "Both" = "purple",
+  # Blue
   "None" = "gray70"  # Grey for cells with no deletion
 )
-deletion_anno_color_palette <- list(
-  Deletion = c(
-    "13q" = "blue",
-    "17q" = "red",
-    "Both" = "purple",
-    "None" = "gray70"
-  )
+deletion_anno_color_palette <- list(Deletion = c(
+  "13q" = "blue",
+  "17q" = "red",
+  "Both" = "purple",
+  "None" = "gray70"
+))
+
+deletion_anno_colors <- list(
+  "13q Del" = c("Yes" = "darkblue", "No" = "forestgreen"),
+  "17q Del" = c("Yes" = "firebrick", "No" = "forestgreen")
 )
 
 scCN_colors <- c(
@@ -29,17 +35,17 @@ scCN_colors <- c(
 )
 
 cyto_colors = c(
-  'gpos100'= rgb(0/255.0,0/255.0,0/255.0),
-  'gpos'   = rgb(0/255.0,0/255.0,0/255.0),
-  'gpos75' = rgb(130/255.0,130/255.0,130/255.0),
-  'gpos66' = rgb(160/255.0,160/255.0,160/255.0),
-  'gpos50' = rgb(200/255.0,200/255.0,200/255.0),
-  'gpos33' = rgb(210/255.0,210/255.0,210/255.0),
-  'gpos25' = rgb(200/255.0,200/255.0,200/255.0),
-  'gvar'   = rgb(220/255.0,220/255.0,220/255.0),
-  'gneg'  = rgb(255/255.0,255/255.0,255/255.0),
-  'acen'  = rgb(217/255.0,47/255.0,39/255.0),
-  'stalk' = rgb(100/255.0,127/255.0,164/255.0)
+  'gpos100' = rgb(0 / 255.0, 0 / 255.0, 0 / 255.0),
+  'gpos'   = rgb(0 / 255.0, 0 / 255.0, 0 / 255.0),
+  'gpos75' = rgb(130 / 255.0, 130 / 255.0, 130 / 255.0),
+  'gpos66' = rgb(160 / 255.0, 160 / 255.0, 160 / 255.0),
+  'gpos50' = rgb(200 / 255.0, 200 / 255.0, 200 / 255.0),
+  'gpos33' = rgb(210 / 255.0, 210 / 255.0, 210 / 255.0),
+  'gpos25' = rgb(200 / 255.0, 200 / 255.0, 200 / 255.0),
+  'gvar'   = rgb(220 / 255.0, 220 / 255.0, 220 / 255.0),
+  'gneg'  = rgb(255 / 255.0, 255 / 255.0, 255 / 255.0),
+  'acen'  = rgb(217 / 255.0, 47 / 255.0, 39 / 255.0),
+  'stalk' = rgb(100 / 255.0, 127 / 255.0, 164 / 255.0)
 )
 
 scCNstate_colors <- c(
@@ -117,7 +123,8 @@ scCNphase_colors <- c(
 #   `1` = "#A75200"
 # )
 
-colvals <- circlize::colorRamp2(c(0, 0.5, 1), c(scCNphase_colors["A-Hom"], scCNphase_colors["Balanced"], scCNphase_colors["B-Hom"]))
+colvals <- circlize::colorRamp2(c(0, 0.5, 1),
+                                c(scCNphase_colors["A-Hom"], scCNphase_colors["Balanced"], scCNphase_colors["B-Hom"]))
 scBAFstate_colors <- unlist(lapply(seq(0.0, 1.0, 0.1), colvals))
 names(scBAFstate_colors) <- paste0(seq(0.0, 1.0, 0.1))
 
@@ -135,55 +142,55 @@ SV_colors <- c(
 #' @export
 scCN_cols <- function(...) {
   cols <- c(...)
-
+  
   if (is.null(cols)) {
     return(scCN_colors)
   }
-
+  
   scCN_colors[cols]
 }
 
 #' @export
 scCNminorallele_cols <- function(...) {
   cols <- c(...)
-
+  
   if (is.null(cols)) {
     return(scCNminorallele_colors)
   }
-
+  
   scCNminorallele_colors[cols]
 }
 
 #' @export
 scBAFstate_cols <- function(...) {
   cols <- c(...)
-
+  
   if (is.null(cols)) {
     return(scBAFstate_colors)
   }
-
+  
   scBAFstate_colors[cols]
 }
 
 #' @export
 scCNphase_cols <- function(...) {
   cols <- c(...)
-
+  
   if (is.null(cols)) {
     return(scCNphase_colors)
   }
-
+  
   scCNphase_colors[cols]
 }
 
 #' @export
 scCNstate_cols <- function(...) {
   cols <- c(...)
-
+  
   if (is.null(cols)) {
     return(scCNstate_colors)
   }
-
+  
   scCNstate_colors[cols]
 }
 
@@ -202,11 +209,14 @@ scCNstate_cols <- function(...) {
 #   `darker1` = sapply(scCN_colors, function(x) lighten(x, factor = 0.9))
 # )
 
-scCN_pal <- function(palette = "main", reverse = FALSE, ...) {
+scCN_pal <- function(palette = "main",
+                     reverse = FALSE,
+                     ...) {
   pal <- scCN_palettes[[palette]]
-
-  if (reverse) pal <- rev(pal)
-
+  
+  if (reverse)
+    pal <- rev(pal)
+  
   colorRampPalette(pal, ...)
 }
 
@@ -218,9 +228,12 @@ scCN_pal <- function(palette = "main", reverse = FALSE, ...) {
 #' @param ... Additional arguments passed to discrete_scale() or
 #'            scale_color_gradientn(), used respectively when discrete is TRUE or FALSE
 #'
-scale_color_scCN <- function(palette = "main", discrete = TRUE, reverse = FALSE, ...) {
+scale_color_scCN <- function(palette = "main",
+                             discrete = TRUE,
+                             reverse = FALSE,
+                             ...) {
   pal <- scCN_pal(palette = palette, reverse = reverse)
-
+  
   if (discrete) {
     ggplot2::discrete_scale("colour", paste0("scCN_", palette), palette = pal, ...)
   } else {
@@ -236,9 +249,12 @@ scale_color_scCN <- function(palette = "main", discrete = TRUE, reverse = FALSE,
 #' @param ... Additional arguments passed to discrete_scale() or
 #'            scale_fill_gradientn(), used respectively when discrete is TRUE or FALSE
 #'
-scale_fill_scCN <- function(palette = "main", discrete = TRUE, reverse = FALSE, ...) {
+scale_fill_scCN <- function(palette = "main",
+                            discrete = TRUE,
+                            reverse = FALSE,
+                            ...) {
   pal <- scCN_pal(palette = palette, reverse = reverse)
-
+  
   if (discrete) {
     ggplot2::discrete_scale("fill", paste0("scCN_", palette), palette = pal, ...)
   } else {
