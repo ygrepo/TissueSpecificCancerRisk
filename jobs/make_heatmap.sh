@@ -38,18 +38,29 @@ echo "Starting heatmap generation..."
 #     --title "B216 Clonal Evolution chr13/17q Deletions" \
 #     --tree_width 2.5 \
 #     --linkheight 2
-     
 Rscript src/make_heatmap.R \
-    --treefile "trees/B218/tree.newick" \
-    --cnv_data "data/B2HET18-hscn.csv" \
-    --output "output/figures/B218_heatmap_chr13_17q_del.pdf" \
+    --treefile "trees/SA501/SA501.tree.newick" \
+    --cnv_data "data/SA501.tbnc.cnv.csv" \
+    --output "output/figures/SA501_heatmap_chr13_17q_del_2.pdf" \
     --chr13_17_deletion \
     --plot_tree \
     --width 8 \
     --height 6 \
-    --title "B218 Clonal Evolution chr13/17q Deletions" \
+    --title "SA501 Clonal Evolution chr13/17q Deletions" \
     --tree_width 2.5 \
     --linkheight 1
+#     
+# Rscript src/make_heatmap.R \
+#     --treefile "trees/B218/tree.newick" \
+#     --cnv_data "data/B2HET18-hscn.csv" \
+#     --output "output/figures/B218_heatmap_chr13_17q_del.pdf" \
+#     --chr13_17_deletion \
+#     --plot_tree \
+#     --width 8 \
+#     --height 6 \
+#     --title "B218 Clonal Evolution chr13/17q Deletions" \
+#     --tree_width 2.5 \
+#     --linkheight 1
 
 # Rscript src/make_heatmap.R \
 #     --treefile "trees/B216/tree.newick" \
