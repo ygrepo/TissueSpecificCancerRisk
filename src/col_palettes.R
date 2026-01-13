@@ -19,6 +19,8 @@ deletion_anno_colors <- list(
   "17q Del" = c("Yes" = "firebrick", "No" = "forestgreen")
 )
 
+#rgb(t(col2rgb("forestgreen")), maxColorValue = 255)
+
 scCN_colors <- c(
   `CN0` = "#3182BD",
   `CN1` = "#9ECAE1",

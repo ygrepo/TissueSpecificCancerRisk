@@ -48,8 +48,12 @@ write.csv(x = sa501,
           row.names = TRUE)
 
 ```
+```{r}
+sa501 <- vroom(here("data","SA501.tbnc.cnv.csv"))
+```
 
 ```{r}
-cnv.hgsc <- read.csv(here("data", "hgsc.cnv.csv"))
+glimpse(sa501)
+# cnv.hgsc <- read.csv(here("data", "hgsc.cnv.csv"))
 
 ```
