@@ -25,6 +25,6 @@ module load R/4.4.3
 
 echo "Starting..."
 
-Rscript src/cnv_processor.R data/genotype.data.cnv.csv data/SA039.tbnc.cnv.csv --patient SA039
+Rscript src/cnv_processor.R data/hgsc.cnv.csv data/SA1052.hgsc.cnv.csv --patient SA1052
 
 echo "Job finished."
