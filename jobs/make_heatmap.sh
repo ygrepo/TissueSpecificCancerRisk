@@ -49,7 +49,7 @@ Rscript src/make_heatmap.R \
     --plot_tree \
     --width 8 \
     --height 6 \
-    --title "SA501 TBC Clonal Evolution chr13/17q Deletions" \
+    --title "SA501 TNBC Clonal Evolution chr13/17q Deletions" \
     --tree_width 3 \
     --linkheight 1
      
