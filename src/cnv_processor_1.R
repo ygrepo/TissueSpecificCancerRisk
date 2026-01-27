@@ -5,20 +5,14 @@ args <- commandArgs(trailingOnly = TRUE)
 
 # Function to display usage
 show_usage <- function() {
-  cat("Usage: Rscript cnv_processor.R <input_file> <output_file> [--patient <id> | --sample_id <id>] [--seed <number>]\n")
+  cat("Usage: Rscript cnv_processor.R <input_file> <output_file> [--seed <number>]\n")
   cat("\n")
   cat("Arguments:\n")
   cat("  input_file   Path to input CSV file with CNV data\n")
   cat("  output_file  Path for output CSV file\n")
   cat("\n")
-  cat("Options:\n")
-  cat("  --patient <id>     Filter to a single patient (matches column 'patient')\n")
-  cat("  --sample_id <id>   Filter to a single sample_id (matches column 'sample_id')\n")
-  cat("  --seed <number>    Set RNG seed (optional)\n")
-  cat("\n")
-  cat("Examples:\n")
-  cat("  Rscript cnv_processor.R data/SA501.tbnc.cnv.csv data/output.csv --patient SA501\n")
-  cat("  Rscript cnv_processor.R data/SA501.tbnc.cnv.csv data/output.csv --sample_id SA501\n")
+  cat("Example:\n")
+  cat("  Rscript cnv_processor.R data/SA501.tbnc.cnv.csv data/output.csv\n")
   quit(status = 1)
 }
 
@@ -32,38 +26,9 @@ if (length(args) < 2) {
   show_usage()
 }
 
-# Parse required positional arguments
+# Parse arguments
 input_file <- args[1]
 output_file <- args[2]
-
-# --- Parse optional flags ---
-get_flag_value <- function(args, flag) {
-  idx <- which(args == flag)
-  if (length(idx) == 0) return(NULL)
-  if (idx[1] == length(args)) {
-    cat("Error: Missing value for", flag, "\n")
-    quit(status = 1)
-  }
-  args[idx[1] + 1]
-}
-
-patient_id <- get_flag_value(args, "--patient")
-sample_id  <- get_flag_value(args, "--sample_id")
-
-seed_val <- get_flag_value(args, "--seed")
-if (!is.null(seed_val)) {
-  if (!grepl("^[0-9]+$", seed_val)) {
-    cat("Error: --seed must be an integer\n")
-    quit(status = 1)
-  }
-  set.seed(as.integer(seed_val))
-}
-
-# Prevent conflicting filters (optional but safer)
-if (!is.null(patient_id) && !is.null(sample_id)) {
-  cat("Error: Provide only one of --patient or --sample_id (not both)\n")
-  quit(status = 1)
-}
 
 # Validate input file exists
 if (!file.exists(input_file)) {
@@ -82,23 +47,19 @@ suppressPackageStartupMessages({
   library(data.table)
 })
 
-# Clear environment and keep args vars we need
-rm(list = ls()[!ls() %in% c("input_file", "output_file", "patient_id", "sample_id", "seed_val")])
+# Clear environment and set seed
+rm(list = ls()[!ls() %in% c("input_file", "output_file")])
 date <- Sys.Date()
 
 cat("Processing CNV data...\n")
 cat("Input file:", input_file, "\n")
 cat("Output file:", output_file, "\n")
-cat("Date:", as.character(date), "\n")
-if (!is.null(patient_id)) cat("Filter patient:", patient_id, "\n")
-if (!is.null(sample_id))  cat("Filter sample_id:", sample_id, "\n")
-if (!is.null(seed_val))   cat("Seed:", seed_val, "\n")
-cat("\n")
+cat("Date:", as.character(date), "\n\n")
 
 # Read data
 cat("Reading input data...\n")
 tryCatch({
-  data <- read.table(input_file,
+  data <- read.table(input_file, 
                      sep = ",",
                      header = TRUE,
                      stringsAsFactors = FALSE)
@@ -108,42 +69,22 @@ tryCatch({
   quit(status = 1)
 })
 
-# --- Filter on patient or sample_id (NEW) ---
-if (!is.null(patient_id)) {
-  if (!"patient" %in% names(data)) {
-    cat("Error: --patient provided but column 'patient' not found in input.\n")
-    cat("Available columns:", paste(names(data), collapse = ", "), "\n")
-    quit(status = 1)
-  }
-  before_n <- nrow(data)
-  data <- data %>% filter(.data$patient == patient_id)
-  after_n <- nrow(data)
-  cat("Filtered by patient:", patient_id, "->", after_n, "rows (from", before_n, ")\n")
-  if (after_n == 0) {
-    cat("Error: No rows found for patient =", patient_id, "\n")
-    quit(status = 1)
-  }
-}
-
-if (!is.null(sample_id)) {
-  if (!"sample_id" %in% names(data)) {
-    cat("Error: --sample_id provided but column 'sample_id' not found in input.\n")
-    cat("Available columns:", paste(names(data), collapse = ", "), "\n")
-    quit(status = 1)
-  }
-  before_n <- nrow(data)
-  data <- data %>% filter(.data$sample_id == sample_id)
-  after_n <- nrow(data)
-  cat("Filtered by sample_id:", sample_id, "->", after_n, "rows (from", before_n, ")\n")
-  if (after_n == 0) {
-    cat("Error: No rows found for sample_id =", sample_id, "\n")
-    quit(status = 1)
-  }
-}
-
 #' Process Long CNV Data to a Sorted Wide Format
+#'
+#' Takes a long-format CNV data frame and transforms it into a wide format
+#' where rows are sorted genomic loci and columns are cell IDs.
+#'
+#' @param long_cnv_data A data frame or tibble in long format, containing
+#'   at least columns: cell_id, chr, start, end, state.
+#'
+#' @return A tibble in wide format. The first column is "loci"
+#'   (e.g., "1_1000_2000"), and subsequent columns are cell_ids,
+#'   with numeric CNV states as values. The rows are sorted
+#'   numerically by chromosome (1-22, X, Y) and then by start position.
+#'
 format_cnv_wide <- function(long_cnv_data) {
   
+  # --- 1. Pivot from Long to Wide ---
   cnv_wide <- long_cnv_data %>%
     transmute(
       cell_id = as.character(cell_id),
@@ -152,33 +93,53 @@ format_cnv_wide <- function(long_cnv_data) {
       end     = as.integer(end),
       state   = as.numeric(state)
     ) %>%
+    # normalize chr labels like "chr13" -> "13"
     mutate(chr = str_replace(chr, "^chr", "")) %>%
+    # build locus id "CHR_START_END"
     mutate(loci = str_c(chr, start, end, sep = "_")) %>%
     select(loci, cell_id, state) %>%
+    # handle accidental duplicates deterministically
     distinct(loci, cell_id, .keep_all = TRUE) %>%
+    # wide: rows=loci, columns=cell_id, values=state
     pivot_wider(names_from = cell_id, values_from = state, values_fill = NA_real_)
   
+  # --- 2. Sort Loci Properly (Genomic Order) ---
+  
+  # Use %||% (null-coalescing operator) to safely get loci.
+  # This works because pivot_wider creates a tibble where 'loci' is a column.
+  # rownames(cnv_wide) will be NULL, so it correctly uses cnv_wide$loci.
   all_loci <- cnv_wide$loci %||% rownames(cnv_wide)
   
   chr_part   <- str_replace(all_loci, "^([0-9XY]+)_.*$", "\\1")
-  start_part <- as.integer(str_replace(all_loci, "^[0-9XY]+_([0-9]+)_.*$", "\\1"))
+  start_part <- as.integer(str_replace(all_loci,
+                                       "^[0-9XY]+_([0-9]+)_.*$", "\\1"))
   
+  # Map chr to sortable numbers (1-22, X=23, Y=24)
   chr_num <- case_when(
     chr_part %in% as.character(1:22) ~ as.integer(chr_part),
     chr_part == "X" ~ 23L,
     chr_part == "Y" ~ 24L,
-    TRUE ~ 999L
+    TRUE ~ 999L # Other/unknown chromosomes sort last
   )
   
+  # Get the row order
   ord <- order(chr_num, start_part, na.last = TRUE)
+  
+  # Apply the sorting
   cnv_wide <- cnv_wide[ord, ]
   
+  # --- 3. Final Formatting for Output ---
+  
+  # This block ensures 'loci' is the first column and there are no row names.
+  # It's a robust way to prepare for writing to CSV.
   out <- tibble(loci = cnv_wide$loci %||% rownames(cnv_wide)) %>%
     bind_cols(as_tibble(cnv_wide %>% select(-loci), .name_repair = "minimal"))
   
+  # Ensure all cell columns are numeric
   num_cols <- setdiff(names(out), "loci")
   out[num_cols] <- lapply(out[num_cols], as.numeric)
   
+  # Return the final processed tibble
   return(out)
 }
 
@@ -186,8 +147,8 @@ format_cnv_wide <- function(long_cnv_data) {
 cat("Processing CNV data to wide format...\n")
 tryCatch({
   processed_cnv_data <- format_cnv_wide(data)
-  cat("Successfully processed data to", nrow(processed_cnv_data), "loci and",
-      ncol(processed_cnv_data) - 1, "cells\n")
+  cat("Successfully processed data to", nrow(processed_cnv_data), "loci and", 
+      ncol(processed_cnv_data)-1, "cells\n")
 }, error = function(e) {
   cat("Error processing data:", e$message, "\n")
   quit(status = 1)
@@ -196,6 +157,7 @@ tryCatch({
 # Write output
 cat("Writing output file...\n")
 tryCatch({
+  # Create output directory if it doesn't exist
   output_dir <- dirname(output_file)
   if (!dir.exists(output_dir)) {
     dir.create(output_dir, recursive = TRUE)
@@ -205,6 +167,7 @@ tryCatch({
   write_csv(processed_cnv_data, output_file)
   cat("Successfully wrote output to:", output_file, "\n")
   
+  # Show first few lines as verification
   cat("\nFirst 3 lines of output:\n")
   first_lines <- readLines(output_file, n = 3)
   cat(paste(first_lines, collapse = "\n"), "\n")
