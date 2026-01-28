@@ -25,6 +25,6 @@ module load R/4.4.3
 
 echo "Starting..."
 
-Rscript src/cnv_processor.R data/hgsc.cnv.csv data/SA1052.hgsc.cnv.csv --patient SA1052
+Rscript src/cnv_processor.R data/hgsc.cnv.csv data/SA1052_tree_input.hgsc.cnv.csv --patient SA1052
 
 echo "Job finished."
