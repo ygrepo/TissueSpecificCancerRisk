@@ -2,12 +2,14 @@
 
 # --- LSF Job Options ---
 #BSUB -P acc_DiseaseGeneCell
-#BSUB -J create_tree_input           # Job name
+#BSUB -J read_cnv_data           # Job name
 #BSUB -n 4                      # Request 4 CPU cores
 #BSUB -W 2:00                   # Walltime of 2 hours
 #BSUB -M 32000                  # Request 32 GB of memory
-#BSUB -o logs/create_tree_input.%J.out    # Standard output log file
-#BSUB -e logs/create_tree_input.%J.err    # Standard error log file
+#BSUB -R "rusage[mem=32000]"
+#BSUB -R "span[hosts=1]"
+#BSUB -o logs/read_cnv_data.%J.out    # Standard output log file
+#BSUB -e logs/read_cnv_data.%J.err    # Standard error log file
 # --- End LSF Options ---
 
 echo "Running on create_tree_input host $(hostname)..."

@@ -45,7 +45,7 @@ echo "Starting heatmap generation..."
 # SA1052     
 Rscript src/make_heatmap.R \
     --treefile "trees/SA1052/tree.newick" \
-    --cnv_data "data/SA1052.hgsc.cnv.csv" \
+    --cnv_data "data/SA1052.hgsc.cnv.cs" \
     --output "output/figures/SA1052_heatmap_chr13_17q_del.pdf" \
     --chr13_17_deletion \
     --chr13_17_deletion_threshold 0.25 \
