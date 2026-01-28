@@ -42,19 +42,33 @@ echo "Starting heatmap generation..."
 #     --title "SA501/gBRCA1 TNBC Clonal Evolution chr13/17q Deletions" \
 #     --tree_width 3 \
 #     --linkheight 1
-# B218     
+# SA1052     
 Rscript src/make_heatmap.R \
-    --treefile "trees/B218/tree.newick" \
-    --cnv_data "data/B2HET18-hscn.csv" \
-    --output "output/figures/B218_heatmap_chr13_17q_del.pdf" \
+    --treefile "trees/SA1052/tree.newick" \
+    --cnv_data "data/SA1052.hgsc.cnv.csv" \
+    --output "output/figures/SA1052_heatmap_chr13_17q_del.pdf" \
     --chr13_17_deletion \
     --chr13_17_deletion_threshold 0.25 \
     --plot_tree \
     --width 8 \
     --height 6 \
-    --title "B218/Benign/BRCA2 HET Clonal Evolution chr13/17q Deletions" \
+    --title "SA1052 Clonal Evolution chr13/17q Deletions" \
     --tree_width 3 \
     --linkheight 1
+     
+# # B218     
+# Rscript src/make_heatmap.R \
+#     --treefile "trees/B218/tree.newick" \
+#     --cnv_data "data/B2HET18-hscn.csv" \
+#     --output "output/figures/B218_heatmap_chr13_17q_del.pdf" \
+#     --chr13_17_deletion \
+#     --chr13_17_deletion_threshold 0.25 \
+#     --plot_tree \
+#     --width 8 \
+#     --height 6 \
+#     --title "B218/Benign/BRCA2 HET Clonal Evolution chr13/17q Deletions" \
+#     --tree_width 3 \
+#     --linkheight 1
     
 # # B216
 # Rscript src/make_heatmap.R \
