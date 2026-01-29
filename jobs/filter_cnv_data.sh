@@ -27,9 +27,9 @@ mkdir -p logs
 
 
 echo "Starting..."
-input_file="data/hgsc.cnv.csv"
-output_file="data/SA1052.hgsc.cnv.csv"
-patient_id="SA1052"
+input_file="data/genotype.data.cnv.csv"
+output_file="data/SA039.geno.cnv.csv"
+patient_id="SA039"
 Rscript src/read_cnv_data.R "${input_file}" "${output_file}" --patient "${patient_id}"
 
 echo "Job finished."
