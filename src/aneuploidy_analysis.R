@@ -154,7 +154,7 @@ calc_genome_metrics <- function(dt, baseline_dt) {
   return(metrics)
 }
 
-#' Determine specific chromosome deletion status (e.g., 13q, 17)
+# Determine specific chromosome deletion status (e.g., 13q, 17)
 call_chr_deletion <- function(dt, metrics_df, target_chr, col_name_prefix, del_cutoff=1, thresh=0.5) {
   
   chr_stat <- dt[chr == as.character(target_chr),
@@ -311,7 +311,10 @@ column_mapping <- c(
 
 # Load
 #input_file <- here("data","SA501.tbnc.cnv.csv")
-input_file <- here("data/allele_specific_cn","B2HET16-hscn.csv")
+#input_file <- here("data","SA1052.hgsc.cnv.csv")
+#input_file <- here("data/allele_specific_cn","B2HET16-hscn.csv")
+input_file <- here("data/allele_specific_cn","B2HET18-hscn.csv")
+
 dt <- load_and_preprocess_cnv(input_file, col_map = column_mapping)
 print(names(dt))
 print(dt[1:3, .(sample_id, cell_id, chr, start, end, state, seg_len)])
@@ -452,7 +455,13 @@ plot_data <- data.frame(
     )
   )
 
+sample_id
 
+# with(subset(cell_metrics, sample_id=="SA1052G"), tapply(frac_altered, WGD, mean, na.rm=TRUE))
+# with(subset(cell_metrics, sample_id=="SA1052G"), tapply(frac_altered, chr17_del, mean, na.rm=TRUE))
+
+
+#sample_id <- "SA1052"
 p <- ggplot(plot_data, aes(x = reorder(term_label, -estimate), y = estimate)) +
   
   # The zero line
@@ -468,22 +477,33 @@ p <- ggplot(plot_data, aes(x = reorder(term_label, -estimate), y = estimate)) +
   coord_flip() +
   labs(
     title = "Fraction Altered",
-    y = paste0(sample_id, ": Adjusted Effect on Fraction Altered"),
+    y = paste0(sample_id, ": adjusted effect on genome-wide CNV burden"),
     x = ""
   ) +
   
   # Theme Settings
-  theme_bw(base_size = 14) +  # Sets the base font size for axes/ticks
+  theme_bw(base_size = 12) +  # Sets the base font size for axes/ticks
   theme(
     panel.grid.minor = element_blank(),
     
     # --- FIX IS HERE ---
     plot.title = element_text(size = 14, face = "bold"),   
-    plot.subtitle = element_text(size = 12, color = "gray30") # Smaller subtitle
+    plot.subtitle = element_text(size = 14, color = "gray30") # Smaller subtitle
   )
-
+p
 ggsave(here("output/figures", 
             paste0(sample_id, "_genomic_instability_drivers.png")), 
             plot = p, width = 7, height = 4, dpi = 300)
 
+# df <- subset(cell_metrics, sample_id=="B2-18")
+# table(df$WGD)
+# table(df$chr13_del)
+# table(df$chr17_del)
+# table(df$WGD, df$chr13_del)
+# table(df$WGD, df$chr17_del)
+# table(df$chr13_del, df$chr17_del)
+# 
+# m <- lm(frac_altered ~ chr13_del + chr17_del, data=df)
+# ct <- coeftest(m, vcov = vcovHC(m, type="HC3"))
+# ct
 

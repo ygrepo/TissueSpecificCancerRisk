@@ -11,3 +11,6 @@ trees/
 results/
 output/
 meetings/
+*.Rmd
+process_data.R
+biomnilab
